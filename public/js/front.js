@@ -1,5 +1,6 @@
 /*global $, document, Chart, LINECHART, data, options, window*/
 $(document).ready(function () {
+    $('nav.side-navbar').addClass('shrink');
 
     'use strict';
 
@@ -10,16 +11,17 @@ $(document).ready(function () {
     function toggleFullscreen(elem) {
         elem = elem || document.documentElement;
         if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
-                if (elem.requestFullscreen) {
-                    elem.requestFullscreen();
-                } else if (elem.msRequestFullscreen) {
-                    elem.msRequestFullscreen();
-                } else if (elem.mozRequestFullScreen) {
-                    elem.mozRequestFullScreen();
-                } else if (elem.webkitRequestFullscreen) {
-                    elem.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
-                }
-            } else {
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            } else if (elem.mozRequestFullScreen) {
+                elem.mozRequestFullScreen();
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+            }
+        }
+        else {
             if (document.exitFullscreen) {
                 document.exitFullscreen();
             } else if (document.msExitFullscreen) {
@@ -31,6 +33,7 @@ $(document).ready(function () {
             }
         }
     }
+
     if(('#btnFullscreen').length > 0) {
         document.getElementById('btnFullscreen').addEventListener('click', function() {
             toggleFullscreen();
@@ -39,7 +42,7 @@ $(document).ready(function () {
 
     //Custom select
     $('select').selectpicker();
-    
+
     $('[data-toggle="tooltip"]').tooltip();
 
     // Main Template Color
@@ -56,20 +59,12 @@ $(document).ready(function () {
         });
     }
 
-    $(document).scroll(function() {
-        var y = $(this).scrollTop();
-        if (y > 65) {
-            $('nav.side-navbar').css("top","0");
-        } else {
-            $('nav.side-navbar').css("top","63px");
-        }
-    });
-
-
     // ------------------------------------------------------- //
     // Side Navbar Functionality
     // ------------------------------------------------------ //
-    
+    if ($(window).outerWidth() > 1199) {
+        $('nav.side-navbar').removeClass('shrink');
+    }
     $('#toggle-btn').on('click', function (e) {
 
         e.preventDefault();
@@ -82,14 +77,22 @@ $(document).ready(function () {
             $('.page').toggleClass('active-sm');
         }
     });
+    if ($(window).outerWidth() < 1199) {
+        $('nav.side-navbar').append('<span class="close"><i class="dripicons-cross"></i></span>');
+    }
+    $(document).on('click', 'nav.side-navbar .close', function(){
+        $('nav.side-navbar').addClass('shrink');
+    })
     
+    $('.pos-page nav.side-navbar').addClass('shrink');
+
     // ------------------------------------------------------- //
     // Header Dropdown / Right Sidebar
     // ------------------------------------------------------ //
-    $('header .dropdown-item').on('click', function(){
+    $(document).on('click', 'header .dropdown-item', function(){
         $('.right-sidebar.open').removeClass('open');
         $(this).siblings('.right-sidebar').addClass('open');
-        $('.page').on('click', function(){
+        $('.page,.pos-page').on('click', function(){
             $('.right-sidebar.open').removeClass('open');
         })
     });
@@ -147,21 +150,6 @@ $(document).ready(function () {
     if ($.cookie("theme_csspath")) {
         alternateColour.attr("href", $.cookie("theme_csspath"));
     }
-
-    $("#colour").change(function () {
-
-        if ($(this).val() !== '') {
-
-            var theme_csspath = 'css/style.' + $(this).val() + '.css';
-
-            alternateColour.attr("href", theme_csspath);
-
-            $.cookie("theme_csspath", theme_csspath, { expires: 365, path: document.URL.substr(0, document.URL.lastIndexOf('/')) });
-
-        }
-
-        return false;
-    });
 
     $('.periods li').on('click', function(){
         $('.decade-select').addClass('hidden');

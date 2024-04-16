@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Roles;
-use App\User;
+use App\Models\Roles;
+use App\Models\User;
 use Auth;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
@@ -16,16 +16,16 @@ class RoleController extends Controller
     {
         if(Auth::user()->role_id <= 2) {
             $lims_role_all = Roles::where('is_active', true)->get();
-            return view('role.create', compact('lims_role_all'));
+            return view('backend.role.create', compact('lims_role_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
     }
 
-    
+
     public function create()
     {
-        
+
     }
 
     public function store(Request $request)
@@ -80,7 +80,7 @@ class RoleController extends Controller
                 $all_permission[] = $permission->name;
             if(empty($all_permission))
                 $all_permission[] = 'dummy text';
-            return view('role.permission', compact('lims_role_data', 'all_permission'));
+            return view('backend.role.permission', compact('lims_role_data', 'all_permission'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -92,6 +92,42 @@ class RoleController extends Controller
             return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
 
         $role = Role::firstOrCreate(['id' => $request['role_id']]);
+
+        if($request->has('revenue_profit_summary')){
+            $permission = Permission::firstOrCreate(['name' => 'revenue_profit_summary']);
+            if(!$role->hasPermissionTo('revenue_profit_summary')) {
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('revenue_profit_summary');
+
+        if($request->has('cash_flow')){
+            $permission = Permission::firstOrCreate(['name' => 'cash_flow']);
+            if(!$role->hasPermissionTo('cash_flow')) {
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('cash_flow');
+
+        if($request->has('monthly_summary')){
+            $permission = Permission::firstOrCreate(['name' => 'monthly_summary']);
+            if(!$role->hasPermissionTo('monthly_summary')) {
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('monthly_summary');
+
+        if($request->has('yearly_report')){
+            $permission = Permission::firstOrCreate(['name' => 'yearly_report']);
+            if(!$role->hasPermissionTo('yearly_report')) {
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('yearly_report');
 
         if($request->has('products-index')){
             $permission = Permission::firstOrCreate(['name' => 'products-index']);
@@ -164,6 +200,42 @@ class RoleController extends Controller
         else
             $role->revokePermissionTo('purchases-delete');
 
+        if($request->has('purchase-payment-index')){
+            $permission = Permission::firstOrCreate(['name' => 'purchase-payment-index']);
+            if(!$role->hasPermissionTo('purchase-payment-index')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('purchase-payment-index');
+
+        if($request->has('purchase-payment-add')){
+            $permission = Permission::firstOrCreate(['name' => 'purchase-payment-add']);
+            if(!$role->hasPermissionTo('purchase-payment-add')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('purchase-payment-add');
+
+        if($request->has('purchase-payment-edit')){
+            $permission = Permission::firstOrCreate(['name' => 'purchase-payment-edit']);
+            if(!$role->hasPermissionTo('purchase-payment-edit')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('purchase-payment-edit');
+
+        if($request->has('purchase-payment-delete')){
+            $permission = Permission::firstOrCreate(['name' => 'purchase-payment-delete']);
+            if(!$role->hasPermissionTo('purchase-payment-delete')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('purchase-payment-delete');
+
         if($request->has('sales-index')){
             $permission = Permission::firstOrCreate(['name' => 'sales-index']);
             if(!$role->hasPermissionTo('sales-index')){
@@ -199,6 +271,42 @@ class RoleController extends Controller
         }
         else
             $role->revokePermissionTo('sales-delete');
+
+        if($request->has('sale-payment-index')){
+            $permission = Permission::firstOrCreate(['name' => 'sale-payment-index']);
+            if(!$role->hasPermissionTo('sale-payment-index')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('sale-payment-index');
+
+        if($request->has('sale-payment-add')){
+            $permission = Permission::firstOrCreate(['name' => 'sale-payment-add']);
+            if(!$role->hasPermissionTo('sale-payment-add')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('sale-payment-add');
+
+        if($request->has('sale-payment-edit')){
+            $permission = Permission::firstOrCreate(['name' => 'sale-payment-edit']);
+            if(!$role->hasPermissionTo('sale-payment-edit')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('sale-payment-edit');
+
+        if($request->has('sale-payment-delete')){
+            $permission = Permission::firstOrCreate(['name' => 'sale-payment-delete']);
+            if(!$role->hasPermissionTo('sale-payment-delete')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('sale-payment-delete');
 
         if($request->has('expenses-index')){
             $permission = Permission::firstOrCreate(['name' => 'expenses-index']);
@@ -731,7 +839,16 @@ class RoleController extends Controller
         else
             $role->revokePermissionTo('warehouse-stock-report');
 
-        if($request->has('product-qty-alert')){
+        if($request->has('product-expiry-report')) {
+            $permission = Permission::firstOrCreate(['name' => 'product-expiry-report']);
+            if(!$role->hasPermissionTo('product-expiry-report')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('product-expiry-report');
+
+        if($request->has('product-qty-alert')) {
             $permission = Permission::firstOrCreate(['name' => 'product-qty-alert']);
             if(!$role->hasPermissionTo('product-qty-alert')){
                 $role->givePermissionTo($permission);
@@ -775,6 +892,15 @@ class RoleController extends Controller
         }
         else
             $role->revokePermissionTo('due-report');
+
+        if($request->has('supplier-due-report')){
+            $permission = Permission::firstOrCreate(['name' => 'supplier-due-report']);
+            if(!$role->hasPermissionTo('supplier-due-report')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('supplier-due-report');
 
         if($request->has('backup_database')){
             $permission = Permission::firstOrCreate(['name' => 'backup_database']);
@@ -866,6 +992,15 @@ class RoleController extends Controller
         else
             $role->revokePermissionTo('adjustment');
 
+        if($request->has('product_history')) {
+            $permission = Permission::firstOrCreate(['name' => 'product_history']);
+            if(!$role->hasPermissionTo('product_history')) {
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('product_history');
+
         if($request->has('print_barcode')){
             $permission = Permission::firstOrCreate(['name' => 'print_barcode']);
             if(!$role->hasPermissionTo('print_barcode')){
@@ -892,6 +1027,24 @@ class RoleController extends Controller
         }
         else
             $role->revokePermissionTo('send_notification');
+
+        if($request->has('discount_plan')){
+            $permission = Permission::firstOrCreate(['name' => 'discount_plan']);
+            if(!$role->hasPermissionTo('discount_plan')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('discount_plan');
+
+        if($request->has('discount')){
+            $permission = Permission::firstOrCreate(['name' => 'discount']);
+            if(!$role->hasPermissionTo('discount')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('discount');
 
         if($request->has('warehouse')){
             $permission = Permission::firstOrCreate(['name' => 'warehouse']);
@@ -1009,6 +1162,47 @@ class RoleController extends Controller
         }
         else
             $role->revokePermissionTo('today_profit');
+
+        if($request->has('all_notification')){
+            $permission = Permission::firstOrCreate(['name' => 'all_notification']);
+            if(!$role->hasPermissionTo('all_notification')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('all_notification');
+
+        if($request->has('sale-report-chart')) {
+            $permission = Permission::firstOrCreate(['name' => 'sale-report-chart']);
+            if(!$role->hasPermissionTo('sale-report-chart')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('sale-report-chart');
+
+        if($request->has('dso-report')) {
+            $permission = Permission::firstOrCreate(['name' => 'dso-report']);
+            if(!$role->hasPermissionTo('dso-report')){
+                $role->givePermissionTo($permission);
+            }
+        }
+        else
+            $role->revokePermissionTo('dso-report');
+
+        if($request->has('custom_field')) {
+            $permission = Permission::firstOrCreate(['name' => 'custom_field']);
+            if(!$role->hasPermissionTo('custom_field')) {
+                $role->givePermissionTo($permission);
+            }
+        }
+        else {
+            $permission = Permission::where('name', 'custom_field')->first();
+            if($permission)
+                $role->revokePermissionTo('custom_field');
+        }
+
+        cache()->forget('permissions');
 
         return redirect('role')->with('message', 'Permission updated successfully');
     }

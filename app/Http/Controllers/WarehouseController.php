@@ -3,17 +3,21 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Warehouse;
+use App\Models\Warehouse;
 use Illuminate\Validation\Rule;
 use Keygen;
+use Auth;
+use DB;
+use App\Traits\CacheForget;
 
 class WarehouseController extends Controller
 {
-
+    use CacheForget;
     public function index()
     {
         $lims_warehouse_all = Warehouse::where('is_active', true)->get();
-        return view('warehouse.create', compact('lims_warehouse_all'));
+        $numberOfWarehouse = Warehouse::where('is_active', true)->count();
+        return view('backend.warehouse.create', compact('lims_warehouse_all', 'numberOfWarehouse'));
     }
 
     public function store(Request $request)
@@ -29,6 +33,7 @@ class WarehouseController extends Controller
         $input = $request->all();
         $input['is_active'] = true;
         Warehouse::create($input);
+        $this->cacheForget('warehouse_list');
         return redirect('warehouse')->with('message', 'Data inserted successfully');
     }
 
@@ -37,7 +42,7 @@ class WarehouseController extends Controller
         $lims_warehouse_data = Warehouse::findOrFail($id);
         return $lims_warehouse_data;
     }
-   
+
     public function update(Request $request, $id)
     {
         $this->validate($request, [
@@ -51,6 +56,7 @@ class WarehouseController extends Controller
         $input = $request->all();
         $lims_warehouse_data = Warehouse::find($input['warehouse_id']);
         $lims_warehouse_data->update($input);
+        $this->cacheForget('warehouse_list');
         return redirect('warehouse')->with('message', 'Data updated successfully');
     }
 
@@ -92,6 +98,7 @@ class WarehouseController extends Controller
            $warehouse->is_active = true;
            $warehouse->save();
         }
+        $this->cacheForget('warehouse_list');
         return redirect('warehouse')->with('message', 'Warehouse imported successfully');
     }
 
@@ -103,6 +110,7 @@ class WarehouseController extends Controller
             $lims_warehouse_data->is_active = false;
             $lims_warehouse_data->save();
         }
+        $this->cacheForget('warehouse_list');
         return 'Warehouse deleted successfully!';
     }
 
@@ -111,6 +119,25 @@ class WarehouseController extends Controller
         $lims_warehouse_data = Warehouse::find($id);
         $lims_warehouse_data->is_active = false;
         $lims_warehouse_data->save();
+        $this->cacheForget('warehouse_list');
         return redirect('warehouse')->with('not_permitted', 'Data deleted successfully');
+    }
+
+    public function warehouseAll()
+    {
+        if(Auth::user()->role_id > 2)
+            $lims_warehouse_list = DB::table('warehouses')->where([
+            ['is_active', true],
+            ['id', Auth::user()->warehouse_id]
+        ])->get();
+        else
+            $lims_warehouse_list = DB::table('warehouses')->where('is_active', true)->get();
+
+        $html = '';
+        foreach($lims_warehouse_list as $warehouse){
+            $html .='<option value="'.$warehouse->id.'">'.$warehouse->name.'</option>';
+        }
+
+        return response()->json($html);
     }
 }

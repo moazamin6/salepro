@@ -3,18 +3,25 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Department;
+use App\Models\Department;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+use Auth;
 
 class DepartmentController extends Controller
 {
-    
     public function index()
     {
-        $lims_department_all = Department::where('is_active', true)->get();
-        return view('department.index', compact('lims_department_all'));
+        $role = Role::find(Auth::user()->role_id);
+        if($role->hasPermissionTo('department')) {
+            $lims_department_all = Department::where('is_active', true)->get();
+            return view('backend.department.index', compact('lims_department_all'));
+        }
+        else
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
     }
-    
+
     public function store(Request $request)
     {
         $this->validate($request, [
@@ -31,7 +38,7 @@ class DepartmentController extends Controller
         Department::create($data);
         return redirect('departments')->with('message', 'Department created successfully');
     }
-    
+
     public function update(Request $request, $id)
     {
         $this->validate($request,[
@@ -42,7 +49,7 @@ class DepartmentController extends Controller
                 }),
             ],
         ]);
-        
+
         $data = $request->all();
         $lims_department_data = Department::find($data['department_id']);
         $lims_department_data->update($data);

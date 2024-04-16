@@ -3,15 +3,19 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Holiday;
+use App\Models\Holiday;
 use Auth;
 use User;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use Illuminate\Support\Facades\Mail;
+use Mail;
+use App\Mail\HolidayApprove;
+use App\Models\MailSetting;
 
 class HolidayController extends Controller
 {
+    use \App\Traits\MailInfo;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
@@ -24,7 +28,7 @@ class HolidayController extends Controller
             $lims_holiday_list = Holiday::where('user_id', Auth::id())->orderBy('id', 'desc')->get();
         }
 
-        return view('holiday.index', compact('lims_holiday_list', 'approve_permission'));
+        return view('backend.holiday.index', compact('lims_holiday_list', 'approve_permission'));
     }
 
     public function create()
@@ -40,7 +44,7 @@ class HolidayController extends Controller
             'user_id'     => Auth::id(),
             'note'        => $request->input('note')
         ];
-        
+
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('holiday')) {
             $data['is_approved'] = true;
@@ -62,18 +66,19 @@ class HolidayController extends Controller
         $holiday = Holiday::find($id);
         $holiday->is_approved = true;
         $holiday->save();
-        
+        //collecting mail data
         $mail_data['name'] = $holiday->user->name;
         $mail_data['email'] = $holiday->user->email;
-        
-        try {
-            Mail::send( 'mail.holiday_approve', $mail_data, function( $message ) use ($mail_data)
-            {
-                $message->to( $mail_data['email'] )->subject( 'Holiday Approved' );
-            });
-        }
-        catch(\Exception $e) {
-            return 'Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+        $mail_setting = MailSetting::latest()->first();
+        if($mail_setting) {
+            $this->setMailInfo($mail_setting);
+            try {
+                Mail::to($mail_data['email'])->send(new HolidayApprove($mail_data));
+                return 'Holiday approved successfully!';
+            }
+            catch(\Exception $e) {
+                return 'Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+            }
         }
     }
 
@@ -94,7 +99,7 @@ class HolidayController extends Controller
                     ['user_id', Auth::id()]
                 ])->first();
             if($holiday_found) {
-                $general_setting = \App\GeneralSetting::select('date_format')->latest()->first();
+                $general_setting = \App\Models\GeneralSetting::select('date_format')->latest()->first();
                 $holidays[$start] = date($general_setting->date_format, strtotime($holiday_found->from_date)).' '.trans("file.To").' '.date($general_setting->date_format, strtotime($holiday_found->to_date));
             }
             else {
@@ -108,7 +113,7 @@ class HolidayController extends Controller
         $prev_month = date('m', strtotime('-1 month', strtotime($year.'-'.$month.'-01')));
         $next_year = date('Y', strtotime('+1 month', strtotime($year.'-'.$month.'-01')));
         $next_month = date('m', strtotime('+1 month', strtotime($year.'-'.$month.'-01')));
-        return view('holiday.my_holiday', compact('start_day', 'year', 'month', 'number_of_day', 'prev_year', 'prev_month', 'next_year', 'next_month', 'holidays'));
+        return view('backend.holiday.my_holiday', compact('start_day', 'year', 'month', 'number_of_day', 'prev_year', 'prev_month', 'next_year', 'next_month', 'holidays'));
     }
 
     public function update(Request $request, $id)

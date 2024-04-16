@@ -3,19 +3,32 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\CustomerGroup;
-use App\Customer;
-use App\Deposit;
-use App\User;
-use Illuminate\Validation\Rule;
+use App\Models\CustomerGroup;
+use App\Models\Customer;
+use App\Models\Deposit;
+use App\Models\User;
+use App\Models\Supplier;
+use App\Models\Sale;
+use App\Models\Payment;
+use App\Models\CashRegister;
+use App\Models\Account;
+use App\Models\MailSetting;
 use Auth;
+use DB;
+use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use App\Mail\UserNotification;
-use Illuminate\Support\Facades\Mail;
+use App\Mail\CustomerCreate;
+use App\Mail\SupplierCreate;
+use App\Mail\CustomerDeposit;
+use Mail;
+use App\Models\CustomField;
 
 class CustomerController extends Controller
 {
+    use \App\Traits\CacheForget;
+    use \App\Traits\MailInfo;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
@@ -25,11 +38,65 @@ class CustomerController extends Controller
                 $all_permission[] = $permission->name;
             if(empty($all_permission))
                 $all_permission[] = 'dummy text';
-            $lims_customer_all = Customer::where('is_active', true)->get();
-            return view('customer.index', compact('lims_customer_all', 'all_permission'));
+            $lims_customer_all = Customer::with('customerGroup')->where('is_active', true)->get();
+            $custom_fields = CustomField::where([
+                                ['belongs_to', 'customer'],
+                                ['is_table', true]
+                            ])->pluck('name');
+            return view('backend.customer.index', compact('lims_customer_all', 'all_permission', 'custom_fields'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+    }
+
+    public function clearDue(Request $request)
+    {
+        $lims_due_sale_data = Sale::select('id', 'warehouse_id', 'grand_total', 'paid_amount', 'payment_status')
+                            ->where([
+                                ['payment_status', '!=', 4],
+                                ['customer_id', $request->customer_id]
+                            ])->get();
+        $total_paid_amount = $request->amount;
+        foreach ($lims_due_sale_data as $key => $sale_data) {
+            if($total_paid_amount == 0)
+                break;
+            $due_amount = $sale_data->grand_total - $sale_data->paid_amount;
+            $lims_cash_register_data =  CashRegister::select('id')
+                                        ->where([
+                                            ['user_id', Auth::id()],
+                                            ['warehouse_id', $sale_data->warehouse_id],
+                                            ['status', 1]
+                                        ])->first();
+            if($lims_cash_register_data)
+                $cash_register_id = $lims_cash_register_data->id;
+            else
+                $cash_register_id = null;
+            $account_data = Account::select('id')->where('is_default', 1)->first();
+            if($total_paid_amount >= $due_amount) {
+                $paid_amount = $due_amount;
+                $payment_status = 4;
+            }
+            else {
+                $paid_amount = $total_paid_amount;
+                $payment_status = 2;
+            }
+            Payment::create([
+                'payment_reference' => 'spr-'.date("Ymd").'-'.date("his"),
+                'sale_id' => $sale_data->id,
+                'user_id' => Auth::id(),
+                'cash_register_id' => $cash_register_id,
+                'account_id' => $account_data->id,
+                'amount' => $paid_amount,
+                'change' => 0,
+                'paying_method' => 'Cash',
+                'payment_note' => $request->note
+            ]);
+            $sale_data->paid_amount += $paid_amount;
+            $sale_data->payment_status = $payment_status;
+            $sale_data->save();
+            $total_paid_amount -= $paid_amount;
+        }
+        return redirect()->back()->with('message', 'Due cleared successfully');
     }
 
     public function create()
@@ -37,26 +104,43 @@ class CustomerController extends Controller
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('customers-add')){
             $lims_customer_group_all = CustomerGroup::where('is_active',true)->get();
-            return view('customer.create', compact('lims_customer_group_all'));
+            $custom_fields = CustomField::where('belongs_to', 'customer')->get();
+            return view('backend.customer.create', compact('lims_customer_group_all', 'custom_fields'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
     }
+
 
     public function store(Request $request)
     {
         $this->validate($request, [
             'phone_number' => [
                 'max:255',
-                    Rule::unique('customers')->where(function ($query) {
+                Rule::unique('customers')->where(function ($query) {
                     return $query->where('is_active', 1);
                 }),
             ],
         ]);
-        $lims_customer_data = $request->all();
-        $lims_customer_data['is_active'] = true;
-        //creating user if given user access
-        if(isset($lims_customer_data['user'])) {
+        //validation for supplier if create both user and supplier
+        if(isset($request->both)) {
+            $this->validate($request, [
+                'company_name' => [
+                    'max:255',
+                    Rule::unique('suppliers')->where(function ($query) {
+                        return $query->where('is_active', 1);
+                    }),
+                ],
+                'email' => [
+                    'max:255',
+                    Rule::unique('suppliers')->where(function ($query) {
+                        return $query->where('is_active', 1);
+                    }),
+                ],
+            ]);
+        }
+        //validation for user if given user access
+        if(isset($request->user)) {
             $this->validate($request, [
                 'name' => [
                     'max:255',
@@ -72,36 +156,66 @@ class CustomerController extends Controller
                     }),
                 ],
             ]);
+        }
+        $customer_data = $request->all();
+        //return $customer_data;
+        $customer_data['is_active'] = true;
+        $prefixMessage = 'Customer';
+        if(isset($request->user)) {
+            $customer_data['phone'] = $customer_data['phone_number'];
+            $customer_data['role_id'] = 5;
+            $customer_data['is_deleted'] = false;
+            $customer_data['password'] = bcrypt($customer_data['password']);
+            $user = User::create($customer_data);
+            $customer_data['user_id'] = $user->id;
+            $prefixMessage .= ', User';
+        }
+        $customer_data['name'] = $customer_data['customer_name'];
+        if(isset($request->both)) {
+            Supplier::create($customer_data);
+            $prefixMessage .= ' and Supplier';
+        }
 
-            $lims_customer_data['phone'] = $lims_customer_data['phone_number'];
-            $lims_customer_data['role_id'] = 5;
-            $lims_customer_data['is_deleted'] = false;
-            $lims_customer_data['password'] = bcrypt($lims_customer_data['password']);
-            $user = User::create($lims_customer_data);
-            $lims_customer_data['user_id'] = $user->id;
-            $message = 'Customer and user created successfully';
-        }
-        else {
-            $message = 'Customer created successfully';
-        }
-        
-        $lims_customer_data['name'] = $lims_customer_data['customer_name'];
-        
-        if($lims_customer_data['email']) {
-            try{
-                Mail::send( 'mail.customer_create', $lims_customer_data, function( $message ) use ($lims_customer_data)
-                {
-                    $message->to( $lims_customer_data['email'] )->subject( 'New Customer' );
-                });
+        $fullMessage = $prefixMessage.' created successfully!';
+        $mail_setting = MailSetting::latest()->first();
+        $message = $this->mailAction($customer_data, $mail_setting, $request, $fullMessage);
+
+        // if($customer_data['email'] && $mail_setting) {
+        //     $this->setMailInfo($mail_setting);
+        //     try {
+        //         Mail::to($customer_data['email'])->send(new CustomerCreate($customer_data));
+        //         if(isset($request->both))
+        //             Mail::to($customer_data['email'])->send(new SupplierCreate($customer_data));
+        //         $message .= ' created successfully!';
+        //     }
+        //     catch(\Exception $e){
+        //         $message .= ' created successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+        //     }
+        // }
+        // else
+        //     $message .= ' created successfully!';
+
+        $lims_customer_data = Customer::create($customer_data);
+        //inserting data for custom fields
+        $custom_field_data = [];
+        $custom_fields = CustomField::where('belongs_to', 'customer')->select('name', 'type')->get();
+        foreach ($custom_fields as $type => $custom_field) {
+            $field_name = str_replace(' ', '_', strtolower($custom_field->name));
+            if(isset($customer_data[$field_name])) {
+                if($custom_field->type == 'checkbox' || $custom_field->type == 'multi_select')
+                    $custom_field_data[$field_name] = implode(",", $customer_data[$field_name]);
+                else
+                    $custom_field_data[$field_name] = $customer_data[$field_name];
             }
-            catch(\Exception $e){
-                $message = 'Customer created successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
-            }   
         }
-
-        Customer::create($lims_customer_data);
-        if($lims_customer_data['pos'])
-            return redirect('pos')->with('message', $message);
+        if(count($custom_field_data))
+            DB::table('customers')->where('id', $lims_customer_data->id)->update($custom_field_data);
+        $this->cacheForget('customer_list');
+        $customerInfo['id'] = $lims_customer_data->id;
+        $customerInfo['name'] = $lims_customer_data->name;
+        $customerInfo['phone_number'] = $lims_customer_data->phone_number;
+        if($customer_data['pos'])
+            return $customerInfo;
         else
             return redirect('customer')->with('create_message', $message);
     }
@@ -112,7 +226,8 @@ class CustomerController extends Controller
         if($role->hasPermissionTo('customers-edit')){
             $lims_customer_data = Customer::find($id);
             $lims_customer_group_all = CustomerGroup::where('is_active',true)->get();
-            return view('customer.edit', compact('lims_customer_data','lims_customer_group_all'));
+            $custom_fields = CustomField::where('belongs_to', 'customer')->get();
+            return view('backend.customer.edit', compact('lims_customer_data','lims_customer_group_all', 'custom_fields'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -161,9 +276,25 @@ class CustomerController extends Controller
         else {
             $message = 'Customer updated successfully';
         }
-        
+
         $input['name'] = $input['customer_name'];
         $lims_customer_data->update($input);
+        //update custom field data
+        $custom_field_data = [];
+        $custom_fields = CustomField::where('belongs_to', 'customer')->select('name', 'type')->get();
+        foreach ($custom_fields as $type => $custom_field) {
+            $field_name = str_replace(' ', '_', strtolower($custom_field->name));
+            if(isset($input[$field_name])) {
+                if($custom_field->type == 'checkbox' || $custom_field->type == 'multi_select')
+                    $custom_field_data[$field_name] = implode(",", $input[$field_name]);
+                else
+                    $custom_field_data[$field_name] = $input[$field_name];
+            }
+        }
+        if(count($custom_field_data))
+            DB::table('customers')->where('id', $lims_customer_data->id)->update($custom_field_data);
+        $this->cacheForget('customer_list');
+
         return redirect('customer')->with('edit_message', $message);
     }
 
@@ -187,6 +318,9 @@ class CustomerController extends Controller
                 $escapedItem=preg_replace('/[^a-z]/', '', $lheader);
                 array_push($escapedHeader, $escapedItem);
             }
+
+            $mail_setting = MailSetting::latest()->first();
+
             //looping through othe columns
             while($columns=fgetcsv($file))
             {
@@ -210,19 +344,22 @@ class CustomerController extends Controller
                $customer->country = $data['country'];
                $customer->is_active = true;
                $customer->save();
-               $message = 'Customer Imported Successfully';
-               if($data['email']){
-                    try{
-                        Mail::send( 'mail.customer_create', $data, function( $message ) use ($data)
-                        {
-                            $message->to( $data['email'] )->subject( 'New Customer' );
-                        });
-                    }
-                    catch(\Exception $e){
-                        $message = 'Customer imported successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
-                    }
-                }
+
+               $message = $this->mailAction($data, $mail_setting, $request, 'Customer Imported Successfully');
+
+            //    $mail_setting = MailSetting::latest()->first();
+            //    if($data['email'] && $mail_setting) {
+            //         $this->setMailInfo($mail_setting);
+            //         try {
+            //             Mail::to($data['email'])->send(new CustomerCreate($data));
+            //         }
+            //         catch(\Exception $e){
+            //             $message = 'Customer imported successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+            //         }
+            //     }
+
             }
+            $this->cacheForget('customer_list');
             return redirect('customer')->with('import_message', $message);
         }
         else
@@ -263,19 +400,22 @@ class CustomerController extends Controller
         $lims_customer_data->save();
         Deposit::create($data);
         $message = 'Data inserted successfully';
-        if($lims_customer_data->email){
+        $mail_setting = MailSetting::latest()->first();
+
+        if($lims_customer_data->email && $mail_setting) {
             $data['name'] = $lims_customer_data->name;
             $data['email'] = $lims_customer_data->email;
             $data['balance'] = $lims_customer_data->deposit - $lims_customer_data->expense;
-            try{
-                Mail::send( 'mail.customer_deposit', $data, function( $message ) use ($data)
-                {
-                    $message->to( $data['email'] )->subject( 'Recharge Info' );
-                });
-            }
-            catch(\Exception $e){
-                $message = 'Data inserted successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
-            }
+            $data['currency'] = config('currency');
+            $message = $this->mailAction($data, $mail_setting, $request);
+
+            // $this->setMailInfo($mail_setting);
+            // try {
+            //     Mail::to($data['email'])->send(new CustomerDeposit($data));
+            // }
+            // catch(\Exception $e){
+            //     $message = 'Data inserted successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+            // }
         }
         return redirect('customer')->with('create_message', $message);
     }
@@ -311,6 +451,7 @@ class CustomerController extends Controller
             $lims_customer_data->is_active = false;
             $lims_customer_data->save();
         }
+        $this->cacheForget('customer_list');
         return 'Customer deleted successfully!';
     }
 
@@ -319,6 +460,40 @@ class CustomerController extends Controller
         $lims_customer_data = Customer::find($id);
         $lims_customer_data->is_active = false;
         $lims_customer_data->save();
+        $this->cacheForget('customer_list');
         return redirect('customer')->with('not_permitted','Data deleted Successfully');
     }
+
+    protected function mailAction($data, $mailSetting, $request, $customMessage=null)
+    {
+        $message = $customMessage ?? 'Data inserted successfully';
+        if(!$mailSetting) {
+            $message = 'Data inserted successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+        }
+        else if($data['email'] && $mailSetting) {
+            try{
+                $this->setMailInfo($mailSetting);
+                Mail::to($data['email'])->send(new CustomerCreate($data));
+                if(isset($request->both))
+                    Mail::to($data['email'])->send(new SupplierCreate($data));
+            }
+            catch(\Exception $e){
+                $message = $e->getMessage();
+            }
+        }
+        return $message;
+    }
+
+    public function customersAll()
+    {
+        $lims_customer_list = DB::table('customers')->where('is_active', true)->get();
+        
+        $html = '';
+        foreach($lims_customer_list as $customer){
+            $html .='<option value="'.$customer->id.'">'.$customer->name . ' (' . $customer->phone_number. ')'.'</option>';
+        }
+
+        return response()->json($html);
+    }
+
 }

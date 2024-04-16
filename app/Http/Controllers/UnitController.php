@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Unit;
+use App\Models\Unit;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
@@ -16,7 +16,7 @@ class UnitController extends Controller
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('unit')) {
             $lims_unit_all = Unit::where('is_active', true)->get();
-            return view('unit.create', compact('lims_unit_all'));
+            return view('backend.unit.create', compact('lims_unit_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -55,7 +55,7 @@ class UnitController extends Controller
         $lims_unit_name = $_GET['lims_unitNameSearch'];
         $lims_unit_all = Unit::where('unit_name', $lims_unit_name)->paginate(5);
         $lims_unit_list = Unit::all();
-        return view('unit.create', compact('lims_unit_all','lims_unit_list'));
+        return view('backend.unit.create', compact('lims_unit_all','lims_unit_list'));
     }
 
     public function edit($id)
@@ -82,13 +82,17 @@ class UnitController extends Controller
         ]);
 
         $input = $request->all();
+        if(!$input['base_unit']){
+            $input['operator'] = '*';
+            $input['operation_value'] = 1;
+        }
         $lims_unit_data = Unit::where('id',$input['unit_id'])->first();
         $lims_unit_data->update($input);
         return redirect('unit');
     }
 
     public function importUnit(Request $request)
-    {  
+    {
         //get file
         $filename =  $request->file->getClientOriginalName();
         $upload=$request->file('file');
@@ -129,12 +133,12 @@ class UnitController extends Controller
                 $unit->operator = $data['operator'];
             if($data['operationvalue'] == null)
                 $unit->operation_value = 1;
-            else 
+            else
                 $unit->operation_value = $data['operationvalue'];
             $unit->save();
         }
         return redirect('unit')->with('message', 'Unit imported successfully');
-        
+
     }
 
     public function deleteBySelection(Request $request)

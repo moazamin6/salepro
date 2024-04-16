@@ -26,7 +26,7 @@ class CreatePermissionTables extends Migration
             $table->string('guard_name')->nullable();
         });
 
-        Schema::create($tableNames['model_has_permissions'], function (Blueprint $table) use ($tableNames) {
+        /*Schema::create($tableNames['model_has_permissions'], function (Blueprint $table) use ($tableNames) {
             $table->unsignedInteger('permission_id');
             $table->morphs('model');
 
@@ -48,7 +48,7 @@ class CreatePermissionTables extends Migration
                 ->onDelete('cascade');
 
             $table->primary(['role_id', 'model_id', 'model_type']);
-        });
+        });*/
 
         Schema::create($tableNames['role_has_permissions'], function (Blueprint $table) use ($tableNames) {
             $table->unsignedInteger('permission_id');

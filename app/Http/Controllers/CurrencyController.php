@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use App\Currency;
+use App\Models\Currency;
+use App\Models\GeneralSetting;
 use Auth;
+use Cache;
 
 class CurrencyController extends Controller
 {
@@ -14,8 +16,8 @@ class CurrencyController extends Controller
     {
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('currency')) {
-            $lims_currency_all = Currency::all();
-            return view('currency.index', compact('lims_currency_all'));
+            $lims_currency_all = Currency::where('is_active', true)->get();
+            return view('backend.currency.index', compact('lims_currency_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -30,6 +32,7 @@ class CurrencyController extends Controller
     {
         $data = $request->all();
         Currency::create($data);
+        cache()->forget('currency');
         return redirect()->back()->with('message', 'Currency created successfully');
     }
 
@@ -46,7 +49,11 @@ class CurrencyController extends Controller
     public function update(Request $request, $id)
     {
         $data = $request->all();
+        if($data['exchange_rate'] == 1) {
+            GeneralSetting::latest()->first()->update(['currency' => $data['currency_id']]);
+        }
         Currency::find($data['currency_id'])->update($data);
+        cache()->forget('currency');
         return redirect()->back()->with('message', 'Currency updated successfully');
     }
 
@@ -54,7 +61,8 @@ class CurrencyController extends Controller
     {
         if(!env('USER_VERIFIED'))
             return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
-        Currency::find($id)->delete();
+        Currency::find($id)->update(['is_active' => false]);
+        cache()->forget('currency');
         return redirect()->back()->with('message', 'Currency deleted successfully');
     }
 }

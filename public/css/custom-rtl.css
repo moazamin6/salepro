@@ -1,15 +1,15 @@
 tbody {
-	text-align: right;
+    text-align: right;
 }
 
 .pull-left,
 .float-left {
-	float: right !important;
+    float: right !important;
 }
 
 .pull-right,
 .float-right {
-	float: left !important;
+    float: left !important;
 }
 
 .side-navbar {
@@ -57,6 +57,13 @@ nav.navbar .nav-item a i {
     float: none !important;
 }
 
+.input-group > .input-group-append > .btn {
+    border-top-left-radius: 0.25rem;
+    border-bottom-left-radius: 0.25rem;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
 .dataTables_length {
     text-align: right;
 }
@@ -73,17 +80,17 @@ nav.navbar .nav-item a i {
 }
 
 ul.pagination {
-	display: block;
+    display: block;
 }
 
 ul.pagination li {
-	float: left;
+    float: left;
 }
 
 .dataTable .dropdown-menu {
-	left: 0;
-	right: auto;
-	text-align: right;
+    left: 0;
+    right: auto;
+    text-align: right;
 }
 
 .dropdown-menu.edit-options li .btn-link {
@@ -95,7 +102,7 @@ ul.pagination li {
 }
 
 .card-body {
-	text-align: right;
+    text-align: right;
 }
 
 .bootstrap-select.btn-group .dropdown-toggle .filter-option {

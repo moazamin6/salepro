@@ -3,20 +3,24 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\CustomerGroup;
+use App\Models\CustomerGroup;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Auth;
+use DB;
+use App\Traits\CacheForget;
 
 class CustomerGroupController extends Controller
 {
+    use CacheForget;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('customer_group')) {
             $lims_customer_group_all = CustomerGroup::where('is_active', true)->get();
-            return view('customer_group.create',compact('lims_customer_group_all'));
+            return view('backend.customer_group.create',compact('lims_customer_group_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -35,6 +39,7 @@ class CustomerGroupController extends Controller
         $lims_customer_group_data = $request->all();
         $lims_customer_group_data['is_active'] = true;
         CustomerGroup::create($lims_customer_group_data);
+        $this->cacheForget('customer_group_list');
         return redirect('customer_group')->with('message', 'Data inserted successfully');
     }
 
@@ -59,6 +64,7 @@ class CustomerGroupController extends Controller
         $lims_customer_group_data = CustomerGroup::find($input['customer_group_id']);
 
         $lims_customer_group_data->update($input);
+        $this->cacheForget('customer_group_list');
         return redirect('customer_group')->with('message', 'Data updated successfully');
     }
 
@@ -98,8 +104,9 @@ class CustomerGroupController extends Controller
            $customer_group->is_active = true;
            $customer_group->save();
         }
+        $this->cacheForget('customer_group_list');
         return redirect('customer_group')->with('message', 'Customer Group imported successfully');
-        
+
     }
 
     public function exportCustomerGroup(Request $request)
@@ -110,15 +117,15 @@ class CustomerGroupController extends Controller
             if($customer_group > 0) {
                 $data = CustomerGroup::where('id', $customer_group)->first();
                 $csvData[]=$data->name. ',' . $data->percentage;
-            }   
-        }        
+            }
+        }
         $filename="customer_group- " .date('d-m-Y').".csv";
         $file_path=public_path().'/downloads/'.$filename;
-        $file_url=url('/').'/downloads/'.$filename;   
+        $file_url=url('/').'/downloads/'.$filename;
         $file = fopen($file_path,"w+");
         foreach ($csvData as $exp_data){
           fputcsv($file,explode(',',$exp_data));
-        }   
+        }
         fclose($file);
         return $file_url;
     }
@@ -131,6 +138,9 @@ class CustomerGroupController extends Controller
             $lims_customer_group_data->is_active = false;
             $lims_customer_group_data->save();
         }
+
+        $this->cacheForget('customer_group_list');
+
         return 'Customer Group deleted successfully!';
     }
 
@@ -139,6 +149,22 @@ class CustomerGroupController extends Controller
         $lims_customer_group_data = CustomerGroup::find($id);
         $lims_customer_group_data->is_active = false;
         $lims_customer_group_data->save();
+
+        $this->cacheForget('customer_group_list');
+
         return redirect('customer_group')->with('not_permitted', 'Data deleted successfully');
     }
+
+    public function customerGroupAll()
+    {
+        $lims_customer_group_list = DB::table('customer_groups')->where('is_active', true)->get();
+        
+        $html = '';
+        foreach($lims_customer_group_list as $customer_group){
+            $html .='<option value="'.$customer_group->id.'">'.$customer_group->name .'</option>';
+        }
+
+        return response()->json($html);
+    }
+
 }

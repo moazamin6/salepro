@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Customer;
-use App\User;
-use App\GiftCard;
-use App\GiftCardRecharge;
+use App\Models\Customer;
+use App\Models\User;
+use App\Models\GiftCard;
+use App\Models\GiftCardRecharge;
 use Keygen;
 use Auth;
 use Illuminate\Validation\Rule;
@@ -25,7 +25,7 @@ class GiftCardController extends Controller
             $lims_user_list = User::where('is_active', true)->get();
             $lims_gift_card_all = GiftCard::where('is_active', true)->orderBy('id', 'desc')->get();
 
-            return view('gift_card.index', compact('lims_customer_list', 'lims_user_list', 'lims_gift_card_all'));
+            return view('backend.gift_card.index', compact('lims_customer_list', 'lims_user_list', 'lims_gift_card_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -147,7 +147,7 @@ class GiftCardController extends Controller
             $lims_customer_data = Customer::find($lims_gift_card_data->customer_id);
         else
             $lims_customer_data = User::find($lims_gift_card_data->user_id);
-        
+
         $lims_gift_card_data->amount += $data['amount'];
         $lims_gift_card_data->save();
         GiftCardRecharge::create($data);
@@ -165,7 +165,7 @@ class GiftCardController extends Controller
             }
             catch(\Exception $e){
                 $message = 'GiftCard recharged successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
-            }  
+            }
         }
         return redirect('gift_cards')->with('message', $message);
     }

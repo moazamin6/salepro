@@ -3,16 +3,20 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Brand;
+use App\Models\Brand;
 use Illuminate\Validation\Rule;
+use App\Traits\TenantInfo;
+use App\Traits\CacheForget;
 
 class BrandController extends Controller
 {
+    use CacheForget;
+    use TenantInfo;
 
     public function index()
     {
         $lims_brand_all = Brand::where('is_active',true)->get();
-        return view('brand.create', compact('lims_brand_all'));
+        return view('backend.brand.create', compact('lims_brand_all'));
     }
 
     public function store(Request $request)
@@ -35,11 +39,18 @@ class BrandController extends Controller
         if ($image) {
             $ext = pathinfo($image->getClientOriginalName(), PATHINFO_EXTENSION);
             $imageName = date("Ymdhis");
-            $imageName = $imageName . '.' . $ext;
-            $image->move('public/images/brand', $imageName);
+            if(!config('database.connections.saleprosaas_landlord')) {
+                $imageName = $imageName . '.' . $ext;
+                $image->move('public/images/brand', $imageName);
+            }
+            else {
+                $imageName = $this->getTenantId() . '_' . $imageName . '.' . $ext;
+                $image->move('public/images/brand', $imageName);
+            }
             $input['image'] = $imageName;
         }
         Brand::create($input);
+        $this->cacheForget('brand_list');
         return redirect('brand');
     }
 
@@ -67,11 +78,18 @@ class BrandController extends Controller
         if ($image) {
             $ext = pathinfo($image->getClientOriginalName(), PATHINFO_EXTENSION);
             $imageName = date("Ymdhis");
-            $imageName = $imageName . '.' . $ext;
-            $image->move('public/images/brand', $imageName);
+            if(!config('database.connections.saleprosaas_landlord')) {
+                $imageName = $imageName . '.' . $ext;
+                $image->move('public/images/brand', $imageName);
+            }
+            else {
+                $imageName = $this->getTenantId() . '_' . $imageName . '.' . $ext;
+                $image->move('public/images/brand', $imageName);
+            }
             $lims_brand_data->image = $imageName;
         }
         $lims_brand_data->save();
+        $this->cacheForget('brand_list');
         return redirect('brand');
     }
 
@@ -110,6 +128,7 @@ class BrandController extends Controller
            $brand->is_active = true;
            $brand->save();
         }
+        $this->cacheForget('brand_list');
         return redirect('brand')->with('message', 'Brand imported successfully');
     }
 
@@ -118,9 +137,16 @@ class BrandController extends Controller
         $brand_id = $request['brandIdArray'];
         foreach ($brand_id as $id) {
             $lims_brand_data = Brand::findOrFail($id);
+            if($lims_brand_data->image && !config('database.connections.saleprosaas_landlord') && file_exists('public/images/brand/'.$lims_brand_data->image)) {
+                unlink('public/images/brand/'.$lims_brand_data->image);
+            }
+            elseif($lims_brand_data->image && file_exists('images/brand/'.$lims_brand_data->image)) {
+                unlink('images/brand/'.$lims_brand_data->image);
+            }
             $lims_brand_data->is_active = false;
             $lims_brand_data->save();
         }
+        $this->cacheForget('brand_list');
         return 'Brand deleted successfully!';
     }
 
@@ -128,8 +154,14 @@ class BrandController extends Controller
     {
         $lims_brand_data = Brand::findOrFail($id);
         $lims_brand_data->is_active = false;
-        unlink('public/images/brand/'.$lims_brand_data->image);
+        if($lims_brand_data->image && !config('database.connections.saleprosaas_landlord') && file_exists('public/images/brand/'.$lims_brand_data->image)) {
+            unlink('public/images/brand/'.$lims_brand_data->image);
+        }
+        elseif($lims_brand_data->image && file_exists('images/brand/'.$lims_brand_data->image)) {
+            unlink('images/brand/'.$lims_brand_data->image);
+        }
         $lims_brand_data->save();
+        $this->cacheForget('brand_list');
         return redirect('brand')->with('not_permitted', 'Brand deleted successfully!');
     }
 
@@ -141,15 +173,15 @@ class BrandController extends Controller
             if($brand > 0) {
                 $data = Brand::where('id', $brand)->first();
                 $csvData[]=$data->title.','.$data->image;
-            }   
-        }        
+            }
+        }
         $filename=date('Y-m-d').".csv";
         $file_path=public_path().'/downloads/'.$filename;
-        $file_url=url('/').'/downloads/'.$filename;   
+        $file_url=url('/').'/downloads/'.$filename;
         $file = fopen($file_path,"w+");
         foreach ($csvData as $exp_data){
           fputcsv($file,explode(',',$exp_data));
-        }   
+        }
         fclose($file);
         return $file_url;
     }

@@ -3,22 +3,28 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Customer;
-use App\Sale;
-use App\Product_Sale;
-use App\Product;
-use App\ProductVariant;
-use App\ProductBatch;
-use App\Delivery;
+use App\Models\Customer;
+use App\Models\Sale;
+use App\Models\Product_Sale;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\ProductBatch;
+use App\Models\Delivery;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use DB;
 use Auth;
-use App\Mail\UserNotification;
-use Illuminate\Support\Facades\Mail;
+use App\Mail\DeliveryDetails;
+use App\Mail\DeliveryChallan;
+use Mail;
+use App\Models\MailSetting;
+use Illuminate\Support\Facades\Cache;
+use App\Models\Courier;
 
 class DeliveryController extends Controller
 {
+    use \App\Traits\MailInfo;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
@@ -27,11 +33,42 @@ class DeliveryController extends Controller
                 $lims_delivery_all = Delivery::orderBy('id', 'desc')->where('user_id', Auth::id())->get();
             else
                 $lims_delivery_all = Delivery::orderBy('id', 'desc')->get();
-            return view('delivery.index', compact('lims_delivery_all'));
+            $lims_courier_list = Courier::where('is_active', true)->get();
+            return view('backend.delivery.index', compact('lims_delivery_all', 'lims_courier_list'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
     }
+
+
+
+    // public function index()
+    // {
+    //     $role = Role::find(Auth::user()->role_id);
+    //     if(!$role->hasPermissionTo('delivery')) {
+    //         return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+    //     }
+
+    //     if(Auth::user()->role_id > 2 && config('staff_access') == 'own')
+    //         $deliveries = Delivery::orderBy('id', 'desc')->where('user_id', Auth::id());
+    //     else
+    //         $deliveries = Delivery::orderBy('id', 'desc');
+
+
+    //     $lims_delivery_all = $deliveries->get();
+    //     $salesId = $deliveries->pluck('sale_id');
+    //     $saleDetails = DB::table('sales')
+    //                     ->join('customers', 'sales.customer_id', '=', 'customers.id')
+    //                     ->join('product_sales', 'sales.id', '=', 'product_sales.sale_id')
+    //                     ->join('products', 'products.id', '=', 'product_sales.product_id')
+    //                     ->whereIn('sales.id', $salesId)
+    //                     ->select(DB::raw('sales.id as saleId, sales.reference_no, customers.name, customers.phone_number, customers.city, sales.grand_total, GROUP_CONCAT(products.name SEPARATOR ", ") as productNames'))
+    //                     ->groupBy('sales.id')
+    //                     ->get();
+
+    //     return view('backend.delivery.index_new', compact('lims_delivery_all','saleDetails'));
+    // }
+
     public function create($id){
         $lims_delivery_data = Delivery::where('sale_id', $id)->first();
         if($lims_delivery_data){
@@ -45,6 +82,7 @@ class DeliveryController extends Controller
             $delivery_data[] = $customer_sale[0]->name;
             $delivery_data[] = $lims_delivery_data->address;
             $delivery_data[] = $lims_delivery_data->note;
+            $delivery_data[] = $lims_delivery_data->courier_id;
         }
         else{
             $customer_sale = DB::table('sales')->join('customers', 'sales.customer_id', '=', 'customers.id')->where('sales.id', $id)->select('sales.reference_no','customers.name', 'customers.address', 'customers.city', 'customers.country')->get();
@@ -57,7 +95,7 @@ class DeliveryController extends Controller
             $delivery_data[] = $customer_sale[0]->name;
             $delivery_data[] = $customer_sale[0]->address.' '.$customer_sale[0]->city.' '.$customer_sale[0]->country;
             $delivery_data[] = '';
-        }        
+        }
         return $delivery_data;
     }
 
@@ -74,6 +112,7 @@ class DeliveryController extends Controller
         }
         $delivery->sale_id = $data['sale_id'];
         $delivery->user_id = Auth::id();
+        $delivery->courier_id = $data['courier_id'];
         $delivery->address = $data['address'];
         $delivery->delivered_by = $data['delivered_by'];
         $delivery->recieved_by = $data['recieved_by'];
@@ -83,7 +122,8 @@ class DeliveryController extends Controller
         $lims_sale_data = Sale::find($data['sale_id']);
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
         $message = 'Delivery created successfully';
-        if($lims_customer_data->email && $data['status'] != 1){
+        $mail_setting = MailSetting::latest()->first();
+        if($lims_customer_data->email && $data['status'] != 1 && $mail_setting) {
             $mail_data['email'] = $lims_customer_data->email;
             $mail_data['customer'] = $lims_customer_data->name;
             $mail_data['sale_reference'] = $lims_sale_data->reference_no;
@@ -91,16 +131,13 @@ class DeliveryController extends Controller
             $mail_data['status'] = $data['status'];
             $mail_data['address'] = $data['address'];
             $mail_data['delivered_by'] = $data['delivered_by'];
-            //return $mail_data;
+            $this->setMailInfo($mail_setting);
             try{
-                Mail::send( 'mail.delivery_details', $mail_data, function( $message ) use ($mail_data)
-                {
-                    $message->to( $mail_data['email'] )->subject( 'Delivery Details' );
-                });
+                Mail::to($mail_data['email'])->send(new DeliveryDetails($mail_data));
             }
             catch(\Exception $e){
                 $message = 'Delivery created successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
-            }  
+            }
         }
         return redirect('delivery')->with('message', $message);
     }
@@ -144,7 +181,8 @@ class DeliveryController extends Controller
         $lims_sale_data = Sale::find($lims_delivery_data->sale->id);
         $lims_product_sale_data = Product_Sale::where('sale_id', $lims_delivery_data->sale->id)->get();
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
-        if($lims_customer_data->email) {
+        $mail_setting = MailSetting::latest()->first();
+        if($lims_customer_data->email && $mail_setting) {
             //collecting male data
             $mail_data['email'] = $lims_customer_data->email;
             $mail_data['date'] = date(config('date_format'), strtotime($lims_delivery_data->created_at->toDateString()));
@@ -176,14 +214,9 @@ class DeliveryController extends Controller
                 }
                 $mail_data['qty'][$key] = $product_sale_data->qty;
             }
-
-            //return $mail_data;
-
+            $this->setMailInfo($mail_setting);
             try{
-                Mail::send( 'mail.delivery_challan', $mail_data, function( $message ) use ($mail_data)
-                {
-                    $message->to( $mail_data['email'] )->subject( 'Delivery Challan' );
-                });
+                Mail::to($mail_data['email'])->send(new DeliveryChallan($mail_data));
                 $message = 'Mail sent successfully';
             }
             catch(\Exception $e){
@@ -192,7 +225,7 @@ class DeliveryController extends Controller
         }
         else
             $message = 'Customer does not have email!';
-        
+
         return redirect()->back()->with('message', $message);
     }
 
@@ -209,6 +242,7 @@ class DeliveryController extends Controller
         $delivery_data[] = $customer_sale[0]->name;
         $delivery_data[] = $lims_delivery_data->address;
         $delivery_data[] = $lims_delivery_data->note;
+        $delivery_data[] = $lims_delivery_data->courier_id;
         return $delivery_data;
     }
 
@@ -219,6 +253,7 @@ class DeliveryController extends Controller
         $lims_delivery_data = Delivery::find($input['delivery_id']);
         $document = $request->file;
         if ($document) {
+            $this->fileDelete('documents/delivery/', $lims_delivery_data->file);
             $ext = pathinfo($document->getClientOriginalName(), PATHINFO_EXTENSION);
             $documentName = $input['reference_no'] . '.' . $ext;
             $document->move('public/documents/delivery', $documentName);
@@ -228,7 +263,8 @@ class DeliveryController extends Controller
         $lims_sale_data = Sale::find($lims_delivery_data->sale_id);
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
         $message = 'Delivery updated successfully';
-        if($lims_customer_data->email && $input['status'] != 1){
+        $mail_setting = MailSetting::latest()->first();
+        if($lims_customer_data->email && $input['status'] != 1 && $mail_setting) {
             $mail_data['email'] = $lims_customer_data->email;
             $mail_data['customer'] = $lims_customer_data->name;
             $mail_data['sale_reference'] = $lims_sale_data->reference_no;
@@ -236,15 +272,13 @@ class DeliveryController extends Controller
             $mail_data['status'] = $input['status'];
             $mail_data['address'] = $input['address'];
             $mail_data['delivered_by'] = $input['delivered_by'];
+            $this->setMailInfo($mail_setting);
             try{
-                Mail::send( 'mail.delivery_details', $mail_data, function( $message ) use ($mail_data)
-                {
-                    $message->to( $mail_data['email'] )->subject( 'Delivery Details' );
-                });
+                Mail::to($mail_data['email'])->send(new DeliveryDetails($mail_data));
             }
             catch(\Exception $e){
                 $message = 'Delivery updated successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
-            }   
+            }
         }
         return redirect('delivery')->with('message', $message);
     }
@@ -254,6 +288,7 @@ class DeliveryController extends Controller
         $delivery_id = $request['deliveryIdArray'];
         foreach ($delivery_id as $id) {
             $lims_delivery_data = Delivery::find($id);
+            $this->fileDelete('documents/delivery/', $lims_delivery_data->file);
             $lims_delivery_data->delete();
         }
         return 'Delivery deleted successfully';
@@ -262,7 +297,9 @@ class DeliveryController extends Controller
     public function delete($id)
     {
         $lims_delivery_data = Delivery::find($id);
+        $this->fileDelete('documents/delivery/', $lims_delivery_data->file);
         $lims_delivery_data->delete();
+
         return redirect('delivery')->with('not_permitted', 'Delivery deleted successfully');
     }
 }

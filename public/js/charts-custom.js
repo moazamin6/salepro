@@ -19,8 +19,7 @@ $(document).ready(function () {
         var cashFlow_chart = new Chart(CASHFLOW, {
             type: 'line',
             data: {
-                labels: [ month[0], month[1], month[2], month[3], month[4],
-                 month[5], month[6] ],
+                labels: month,
                 datasets: [
                     {
                         label: label1,
@@ -42,8 +41,7 @@ $(document).ready(function () {
                         pointHoverBorderWidth: 2,
                         pointRadius: 1,
                         pointHitRadius: 10,
-                        data: [recieved[0], recieved[1], recieved[2], recieved[3],
-                         recieved[4], recieved[5], recieved[6] ],
+                        data: recieved,
                         spanGaps: false
                     },
                     {
@@ -66,10 +64,50 @@ $(document).ready(function () {
                         pointHoverBorderWidth: 2,
                         pointRadius: 1,
                         pointHitRadius: 10,
-                        data: [sent[0], sent[1], sent[2], sent[3],
-                         sent[4], sent[5], sent[6] ],
+                        data: sent,
                         spanGaps: false
                     }
+                ]
+            }
+        });
+    };
+
+    var SALEREPORTCHART = $('#sale-report-chart');
+    if (SALEREPORTCHART.length > 0) {
+        var recieved = SALEREPORTCHART.data('recieved');
+        brandPrimary = SALEREPORTCHART.data('color');
+        brandPrimaryRgba = SALEREPORTCHART.data('color_rgba');
+        var soldqty = SALEREPORTCHART.data('soldqty');
+        var datepoints = SALEREPORTCHART.data('datepoints');
+        var label1 = SALEREPORTCHART.data('label1');
+        var sale_report_chart = new Chart(SALEREPORTCHART, {
+            type: 'line',
+            data: {
+                labels: datepoints,
+                datasets: [
+                    {
+                        label: label1,
+                        fill: true,
+                        lineTension: 0.3,
+                        backgroundColor: 'transparent',
+                        borderColor: brandPrimary,
+                        borderCapStyle: 'butt',
+                        borderDash: [],
+                        borderDashOffset: 0.0,
+                        borderJoinStyle: 'miter',
+                        borderWidth: 3,
+                        pointBorderColor: brandPrimary,
+                        pointBackgroundColor: "#fff",
+                        pointBorderWidth: 5,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: brandPrimary,
+                        pointHoverBorderColor: "rgba(220,220,220,1)",
+                        pointHoverBorderWidth: 2,
+                        pointRadius: 1,
+                        pointHitRadius: 10,
+                        data: soldqty,
+                        spanGaps: false
+                    },
                 ]
             }
         });

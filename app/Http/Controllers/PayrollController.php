@@ -3,20 +3,21 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Account;
-use App\Employee;
-use App\Payroll;
+use App\Models\Account;
+use App\Models\Employee;
+use App\Models\Payroll;
 use Auth;
 use DB;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use App\Mail\UserNotification;
-use Illuminate\Support\Facades\Mail;
-
+use App\Mail\PayrollDetails;
+use Mail;
+use App\Models\MailSetting;
 
 class PayrollController extends Controller
 {
-    
+    use \App\Traits\MailInfo;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
@@ -29,7 +30,7 @@ class PayrollController extends Controller
             else
                 $lims_payroll_all = Payroll::orderBy('id', 'desc')->get();
 
-            return view('payroll.index', compact('lims_account_list', 'lims_employee_list', 'lims_payroll_all'));
+            return view('backend.payroll.index', compact('lims_account_list', 'lims_employee_list', 'lims_payroll_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -43,6 +44,10 @@ class PayrollController extends Controller
     public function store(Request $request)
     {
         $data = $request->all();
+        if(isset($data['created_at']))
+            $data['created_at'] = date("Y-m-d", strtotime(str_replace("/", "-", $data['created_at'])));
+        else
+            $data['created_at'] = date("Y-m-d");
         $data['reference_no'] = 'payroll-' . date("Ymd") . '-'. date("his");
         $data['user_id'] = Auth::id();
         Payroll::create($data);
@@ -53,16 +58,17 @@ class PayrollController extends Controller
         $mail_data['amount'] = $data['amount'];
         $mail_data['name'] = $lims_employee_data->name;
         $mail_data['email'] = $lims_employee_data->email;
-        try{
-            Mail::send( 'mail.payroll_details', $mail_data, function( $message ) use ($mail_data)
-            {
-                $message->to( $mail_data['email'] )->subject( 'Payroll Details' );
-            });
+        $mail_data['currency'] = config('currency');
+        $mail_setting = MailSetting::latest()->first();
+        if($mail_setting) {
+            $this->setMailInfo($mail_setting);
+            try{
+                Mail::to($mail_data['email'])->send(new PayrollDetails($mail_data));
+            }
+            catch(\Exception $e){
+                $message = ' Payroll created successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+            }
         }
-        catch(\Exception $e){
-            $message = ' Payroll created successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
-        }
-
         return redirect('payroll')->with('message', $message);
     }
 
@@ -74,6 +80,10 @@ class PayrollController extends Controller
     public function update(Request $request, $id)
     {
         $data = $request->all();
+        if(isset($data['created_at']))
+            $data['created_at'] = date("Y-m-d", strtotime(str_replace("/", "-", $data['created_at'])));
+        else
+            $data['created_at'] = date("Y-m-d");
         $lims_payroll_data = Payroll::find($data['payroll_id']);
         $lims_payroll_data->update($data);
         return redirect('payroll')->with('message', 'Payroll updated succesfully');
