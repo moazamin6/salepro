@@ -59,12 +59,9 @@ elseif($install2 == true)
 else {
     $kernel = $app->make(Kernel::class);
 
-    $response = tap($kernel->handle(
+    $response = $kernel->handle(
         $request = Request::capture()
-    ))->send();
+    )->send();
 
     $kernel->terminate($request, $response);
 }
-
-
-

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\MoneyTransfer;
-use App\Account;
+use App\Models\MoneyTransfer;
+use App\Models\Account;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
@@ -17,7 +17,7 @@ class MoneyTransferController extends Controller
         if($role->hasPermissionTo('money-transfer')){
             $lims_money_transfer_all = MoneyTransfer::get();
             $lims_account_list = Account::where('is_active', true)->get();
-            return view('money_transfer.index', compact('lims_money_transfer_all', 'lims_account_list'));
+            return view('backend.money_transfer.index', compact('lims_money_transfer_all', 'lims_account_list'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');

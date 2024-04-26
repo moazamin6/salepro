@@ -1,6 +1,7 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\DemoAutoUpdateController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -13,6 +14,9 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::middleware('auth:api')->get('/user', function (Request $request) {
-    return $request->user();
+Route::controller(DemoAutoUpdateController::class)->group(function () {
+    Route::get('fetch-data-general', 'fetchDataGeneral')->name('fetch-data-general');
+    Route::get('fetch-data-upgrade', 'fetchDataForAutoUpgrade')->name('data-read');
+    Route::get('fetch-data-bugs', 'fetchDataForBugs')->name('fetch-data-bugs');
 });
+

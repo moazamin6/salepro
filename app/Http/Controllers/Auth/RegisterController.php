@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\User;
-use App\Customer;
+use App\Models\User;
+use App\Models\Customer;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Validation\Rule;
+use App\Models\Roles;
+use App\Models\CustomerGroup;
+use App\Models\Biller;
+use App\Models\Warehouse;
 
 class RegisterController extends Controller
 {
@@ -42,6 +46,21 @@ class RegisterController extends Controller
     }
 
     /**
+     * Show the application registration form.
+     *
+     * @return \Illuminate\View\View
+     */
+    public function showRegistrationForm()
+    {
+        $lims_role_list = Roles::where('is_active', true)->get();
+        $lims_customer_group_list = CustomerGroup::where('is_active', true)->get();
+        $lims_biller_list = Biller::where('is_active', true)->get();
+        $lims_warehouse_list = Warehouse::where('is_active', true)->get();
+        $numberOfUserAccount = User::where('is_active', true)->count();
+        return view('backend.auth.register', compact('lims_role_list', 'lims_customer_group_list', 'lims_biller_list', 'lims_warehouse_list', 'numberOfUserAccount'));
+    }
+
+    /**
      * Get a validator for an incoming registration request.
      *
      * @param  array  $data
@@ -66,7 +85,7 @@ class RegisterController extends Controller
      * Create a new user instance after a valid registration.
      *
      * @param  array  $data
-     * @return \App\User
+     * @return \App\Models\User
      */
     protected function create(array $data)
     {
@@ -87,6 +106,7 @@ class RegisterController extends Controller
         if($data['role_id'] == 5) {
             $data['name'] = $data['customer_name'];
             $data['user_id'] = $user->id;
+            $data['is_active'] = true;
             Customer::create($data);
         }
 

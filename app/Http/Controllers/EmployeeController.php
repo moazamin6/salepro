@@ -4,17 +4,20 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
-use App\Warehouse;
-use App\Biller;
-use App\Employee;
-use App\User;
-use App\Department;
+use App\Models\Warehouse;
+use App\Models\Biller;
+use App\Models\Employee;
+use App\Models\User;
+use App\Models\Department;
 use Auth;
 use Illuminate\Validation\Rule;
+use App\Traits\TenantInfo;
+use Illuminate\Support\Facades\File;
 
 class EmployeeController extends Controller
 {
-    
+    use TenantInfo;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
@@ -26,7 +29,8 @@ class EmployeeController extends Controller
                 $all_permission[] = 'dummy text';
             $lims_employee_all = Employee::where('is_active', true)->get();
             $lims_department_list = Department::where('is_active', true)->get();
-            return view('employee.index', compact('lims_employee_all', 'lims_department_list', 'all_permission'));
+            $numberOfEmployee = Employee::where('is_active', true)->count();
+            return view('backend.employee.index', compact('lims_employee_all', 'lims_department_list', 'all_permission', 'numberOfEmployee'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -40,8 +44,9 @@ class EmployeeController extends Controller
             $lims_warehouse_list = Warehouse::where('is_active', true)->get();
             $lims_biller_list = Biller::where('is_active', true)->get();
             $lims_department_list = Department::where('is_active', true)->get();
-
-            return view('employee.create', compact('lims_role_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_department_list'));
+            $numberOfEmployee = Employee::where('is_active', true)->count();
+            $numberOfUserAccount = User::where('is_active', true)->count();
+            return view('backend.employee.create', compact('lims_role_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_department_list', 'numberOfEmployee', 'numberOfUserAccount'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -71,7 +76,7 @@ class EmployeeController extends Controller
             $data['is_active'] = true;
             $data['is_deleted'] = false;
             $data['password'] = bcrypt($data['password']);
-            $data['phone'] = $data['phone_number']; 
+            $data['phone'] = $data['phone_number'];
             User::create($data);
             $user = User::latest()->first();
             $data['user_id'] = $user->id;
@@ -87,23 +92,28 @@ class EmployeeController extends Controller
             ],
             'image' => 'image|mimes:jpg,jpeg,png,gif|max:100000',
         ]);
-        
+
         $image = $request->image;
         if ($image) {
             $ext = pathinfo($image->getClientOriginalName(), PATHINFO_EXTENSION);
-            $imageName = preg_replace('/[^a-zA-Z0-9]/', '', $request['email']);
-            $imageName = $imageName . '.' . $ext;
-            $image->move('public/images/employee', $imageName);
+            $imageName = date("Ymdhis");
+            if(!config('database.connections.saleprosaas_landlord')) {
+                $imageName = $imageName . '.' . $ext;
+                $image->move('public/images/employee', $imageName);
+            }
+            else {
+                $imageName = $this->getTenantId() . '_' . $imageName . '.' . $ext;
+                $image->move('public/images/employee', $imageName);
+            }
             $data['image'] = $imageName;
         }
-
         $data['name'] = $data['employee_name'];
         $data['is_active'] = true;
         Employee::create($data);
 
         return redirect('employees')->with('message', $message);
     }
-    
+
     public function update(Request $request, $id)
     {
         $lims_employee_data = Employee::find($request['employee_id']);
@@ -135,17 +145,23 @@ class EmployeeController extends Controller
             ],
             'image' => 'image|mimes:jpg,jpeg,png,gif|max:100000',
         ]);
-        
+
         $data = $request->except('image');
         $image = $request->image;
         if ($image) {
+            $this->fileDelete('images/employee/', $lims_employee_data->image);
             $ext = pathinfo($image->getClientOriginalName(), PATHINFO_EXTENSION);
-            $imageName = preg_replace('/[^a-zA-Z0-9]/', '', $request['email']);
-            $imageName = $imageName . '.' . $ext;
-            $image->move('public/images/employee', $imageName);
+            $imageName = date("Ymdhis");
+            if(!config('database.connections.saleprosaas_landlord')) {
+                $imageName = $imageName . '.' . $ext;
+                $image->move('public/images/employee', $imageName);
+            }
+            else {
+                $imageName = $this->getTenantId() . '_' . $imageName . '.' . $ext;
+                $image->move('public/images/employee', $imageName);
+            }
             $data['image'] = $imageName;
         }
-
         $lims_employee_data->update($data);
         return redirect('employees')->with('message', 'Employee updated successfully');
     }
@@ -162,9 +178,14 @@ class EmployeeController extends Controller
             }
             $lims_employee_data->is_active = false;
             $lims_employee_data->save();
+
+            $this->fileDelete('images/employee/', $lims_employee_data->image);
         }
+
         return 'Employee deleted successfully!';
     }
+
+
     public function destroy($id)
     {
         $lims_employee_data = Employee::find($id);
@@ -173,6 +194,16 @@ class EmployeeController extends Controller
             $lims_user_data->is_deleted = true;
             $lims_user_data->save();
         }
+
+        $this->fileDelete('images/employee/', $lims_employee_data->image);
+
+        // if($lims_employee_data->image && !config('database.connections.saleprosaas_landlord')) {
+        //     unlink('public/images/employee/'.$lims_employee_data->image);
+        // }
+        // elseif($lims_employee_data->image) {
+        //     unlink('images/employee/'.$lims_employee_data->image);
+        // }
+
         $lims_employee_data->is_active = false;
         $lims_employee_data->save();
         return redirect('employees')->with('not_permitted', 'Employee deleted successfully');

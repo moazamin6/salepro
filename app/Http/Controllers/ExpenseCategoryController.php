@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\ExpenseCategory;
+use App\Models\ExpenseCategory;
 use Keygen;
+use DB;
 use Illuminate\Validation\Rule;
 
 class ExpenseCategoryController extends Controller
@@ -12,7 +13,7 @@ class ExpenseCategoryController extends Controller
     public function index()
     {
         $lims_expense_category_all = ExpenseCategory::where('is_active', true)->get();
-        return view('expense_category.index', compact('lims_expense_category_all'));
+        return view('backend.expense_category.index', compact('lims_expense_category_all'));
     }
 
     public function create()
@@ -124,5 +125,16 @@ class ExpenseCategoryController extends Controller
         $lims_expense_category_data->is_active = false;
         $lims_expense_category_data->save();
         return redirect('expense_categories')->with('not_permitted', 'Data deleted successfully');
+    }
+
+    public function expenseCategoriesAll()
+    {
+        $lims_expense_category_list = DB::table('expense_categories')->where('is_active', true)->get();
+        $html = '';
+        foreach($lims_expense_category_list as $expense_category){
+            $html .='<option value="'.$expense_category->id.'">'.$expense_category->name . ' (' . $expense_category->code. ')'.'</option>';
+        }
+
+        return response()->json($html);
     }
 }

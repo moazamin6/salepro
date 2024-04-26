@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Account;
-use App\Payment;
-use App\Returns;
-use App\ReturnPurchase;
-use App\Expense;
-use App\Payroll;
-use App\MoneyTransfer;
+use Illuminate\Database\Eloquent\Collection;
+use App\Models\Account;
+use App\Models\Payment;
+use App\Models\Returns;
+use App\Models\ReturnPurchase;
+use App\Models\Expense;
+use App\Models\Payroll;
+use App\Models\MoneyTransfer;
 use DB;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
@@ -24,7 +25,7 @@ class AccountsController extends Controller
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('account-index')){
             $lims_account_all = Account::where('is_active', true)->get();
-            return view('account.index', compact('lims_account_all'));
+            return view('backend.account.index', compact('lims_account_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -121,7 +122,7 @@ class AccountsController extends Controller
                 /*$credit[] = $payment_recieved + $return_purchase + $account->initial_balance;
                 $debit[] = $payment_sent + $returns + $expenses + $payrolls;*/
             }
-            return view('account.balance_sheet', compact('lims_account_list', 'debit', 'credit'));
+            return view('backend.account.balance_sheet', compact('lims_account_list', 'debit', 'credit'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -130,36 +131,75 @@ class AccountsController extends Controller
     public function accountStatement(Request $request)
     {
         $data = $request->all();
+        //return $data;
         $lims_account_data = Account::find($data['account_id']);
-        $credit_list = [];
-        $debit_list = [];
-        $expense_list = [];
-        $return_list = [];
-        $purchase_return_list = [];
-        $payroll_list = [];
-        $recieved_money_transfer_list = [];
-        $sent_money_transfer_list = [];
-        
+        $credit_list = new Collection;
+        $debit_list = new Collection;
+        $expense_list = new Collection;
+        $return_list = new Collection;
+        $purchase_return_list = new Collection;
+        $payroll_list = new Collection;
+        $recieved_money_transfer_list = new Collection;
+        $sent_money_transfer_list = new Collection;
+
         if($data['type'] == '0' || $data['type'] == '2') {
-            $credit_list = Payment::whereNotNull('sale_id')->where('account_id', $data['account_id'])->whereDate('created_at', '>=' , $data['start_date'])->whereDate('created_at', '<=' , $data['end_date'])->get();
+            $credit_list = Payment::whereNotNull('sale_id')
+                            ->where('account_id', $data['account_id'])
+                            ->whereDate('created_at', '>=' , $data['start_date'])
+                            ->whereDate('created_at', '<=' , $data['end_date'])
+                            ->select('payment_reference as reference_no', 'sale_id', 'amount', 'created_at')
+                            ->get();
 
-            $recieved_money_transfer_list = MoneyTransfer::where('to_account_id', $data['account_id'])->get();
+            $recieved_money_transfer_list = MoneyTransfer::where('to_account_id', $data['account_id'])
+                                            ->whereDate('created_at', '>=' , $data['start_date'])
+                                            ->whereDate('created_at', '<=' , $data['end_date'])
+                                            ->select('reference_no', 'to_account_id', 'amount', 'created_at')
+                                            ->get();
+            $purchase_return_list = ReturnPurchase::where('account_id', $data['account_id'])
+                                    ->whereDate('created_at', '>=' , $data['start_date'])
+                                    ->whereDate('created_at', '<=' , $data['end_date'])
+                                    ->select('reference_no', 'grand_total as amount', 'created_at')
+                                    ->get();
         }
-        if($data['type'] == '0' || $data['type'] == '1'){
-            $debit_list = Payment::whereNotNull('purchase_id')->where('account_id', $data['account_id'])->whereDate('created_at', '>=' , $data['start_date'])->whereDate('created_at', '<=' , $data['end_date'])->get();
-
-            $expense_list = Expense::where('account_id', $data['account_id'])->whereDate('created_at', '>=' , $data['start_date'])->whereDate('created_at', '<=' , $data['end_date'])->get();
-
-            $return_list = Returns::where('account_id', $data['account_id'])->whereDate('created_at', '>=' , $data['start_date'])->whereDate('created_at', '<=' , $data['end_date'])->get();
-
-            $purchase_return_list = ReturnPurchase::where('account_id', $data['account_id'])->whereDate('created_at', '>=' , $data['start_date'])->whereDate('created_at', '<=' , $data['end_date'])->get();
-
-            $payroll_list = Payroll::where('account_id', $data['account_id'])->whereDate('created_at', '>=' , $data['start_date'])->whereDate('created_at', '<=' , $data['end_date'])->get();
-
-            $sent_money_transfer_list = MoneyTransfer::where('from_account_id', $data['account_id'])->get();
+        if($data['type'] == '0' || $data['type'] == '1') {
+            $debit_list = Payment::whereNotNull('purchase_id')
+                            ->where('account_id', $data['account_id'])
+                            ->whereDate('created_at', '>=' , $data['start_date'])
+                            ->whereDate('created_at', '<=' , $data['end_date'])
+                            ->select('payment_reference as reference_no', 'purchase_id', 'amount', 'created_at')
+                            ->get();
+            $expense_list = Expense::where('account_id', $data['account_id'])
+                            ->whereDate('created_at', '>=' , $data['start_date'])
+                            ->whereDate('created_at', '<=' , $data['end_date'])
+                            ->select('reference_no', 'amount', 'created_at')
+                            ->get();
+            $return_list = Returns::where('account_id', $data['account_id'])
+                            ->whereDate('created_at', '>=' , $data['start_date'])
+                            ->whereDate('created_at', '<=' , $data['end_date'])
+                            ->select('reference_no', 'grand_total as amount', 'created_at')
+                            ->get();
+            $payroll_list = Payroll::where('account_id', $data['account_id'])
+                            ->whereDate('created_at', '>=' , $data['start_date'])
+                            ->whereDate('created_at', '<=' , $data['end_date'])
+                            ->select('reference_no', 'amount', 'created_at')
+                            ->get();
+            $sent_money_transfer_list = MoneyTransfer::where('from_account_id', $data['account_id'])
+                                        ->whereDate('created_at', '>=' , $data['start_date'])
+                                        ->whereDate('created_at', '<=' , $data['end_date'])
+                                        ->select('reference_no', 'to_account_id', 'amount', 'created_at')
+                                        ->get();
         }
+        $all_transaction_list = new Collection;
+        $all_transaction_list = $credit_list->concat($recieved_money_transfer_list)
+                                ->concat($debit_list)
+                                ->concat($expense_list)
+                                ->concat($return_list)
+                                ->concat($purchase_return_list)
+                                ->concat($payroll_list)
+                                ->concat($sent_money_transfer_list)
+                                ->sortByDesc('created_at');
         $balance = 0;
-        return view('account.account_statement', compact('lims_account_data', 'credit_list', 'debit_list', 'expense_list', 'return_list', 'purchase_return_list', 'payroll_list', 'recieved_money_transfer_list', 'sent_money_transfer_list', 'balance'));
+        return view('backend.account.account_statement', compact('lims_account_data', 'all_transaction_list', 'balance'));
     }
 
     public function destroy($id)
@@ -174,5 +214,21 @@ class AccountsController extends Controller
         }
         else
             return redirect('accounts')->with('not_permitted', 'Please make another account default first!');
+    }
+
+    public function accountsAll()
+    {
+        $lims_account_list = DB::table('accounts')->where('is_active', true)->get();
+        
+        $html = '';
+        foreach($lims_account_list as $account){
+            if($account->is_default == 1){
+                $html .='<option selected value="'.$account->id.'">'.$account->name . ' (' . $account->account_no. ')'.'</option>';
+            }else{
+                $html .='<option value="'.$account->id.'">'.$account->name . ' (' . $account->account_no. ')'.'</option>';
+            }      
+        }
+
+        return response()->json($html);
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\StockCount;
+namespace App\Models\StockCount;
 
 use Illuminate\Database\Eloquent\Model;
 

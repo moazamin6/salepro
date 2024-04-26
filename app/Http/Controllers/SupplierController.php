@@ -3,16 +3,27 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Supplier;
+use App\Models\Supplier;
+use App\Models\Customer;
+use App\Models\CustomerGroup;
+use App\Models\Purchase;
+use App\Models\CashRegister;
+use App\Models\Account;
+use App\Models\Payment;
+use App\Models\MailSetting;
 use Illuminate\Validation\Rule;
 use Auth;
+use DB;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use App\Mail\UserNotification;
-use Illuminate\Support\Facades\Mail;
+use App\Mail\SupplierCreate;
+use App\Mail\CustomerCreate;
+use Mail;
 
 class SupplierController extends Controller
 {
+    use \App\Traits\MailInfo;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
@@ -23,17 +34,68 @@ class SupplierController extends Controller
             if(empty($all_permission))
                 $all_permission[] = 'dummy text';
             $lims_supplier_all = Supplier::where('is_active', true)->get();
-            return view('supplier.index',compact('lims_supplier_all', 'all_permission'));
+            return view('backend.supplier.index',compact('lims_supplier_all', 'all_permission'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+    }
+
+    public function clearDue(Request $request)
+    {
+        $lims_due_purchase_data = Purchase::select('id', 'warehouse_id', 'grand_total', 'paid_amount', 'payment_status')
+                            ->where([
+                                ['payment_status', 1],
+                                ['supplier_id', $request->supplier_id]
+                            ])->get();
+        $total_paid_amount = $request->amount;
+        foreach ($lims_due_purchase_data as $key => $purchase_data) {
+            if($total_paid_amount == 0)
+                break;
+            $due_amount = $purchase_data->grand_total - $purchase_data->paid_amount;
+            $lims_cash_register_data =  CashRegister::select('id')
+                                        ->where([
+                                            ['user_id', Auth::id()],
+                                            ['warehouse_id', $purchase_data->warehouse_id],
+                                            ['status', 1]
+                                        ])->first();
+            if($lims_cash_register_data)
+                $cash_register_id = $lims_cash_register_data->id;
+            else
+                $cash_register_id = null;
+            $account_data = Account::select('id')->where('is_default', 1)->first();
+            if($total_paid_amount >= $due_amount) {
+                $paid_amount = $due_amount;
+                $payment_status = 2;
+            }
+            else {
+                $paid_amount = $total_paid_amount;
+                $payment_status = 1;
+            }
+            Payment::create([
+                'payment_reference' => 'ppr-'.date("Ymd").'-'.date("his"),
+                'purchase_id' => $purchase_data->id,
+                'user_id' => Auth::id(),
+                'cash_register_id' => $cash_register_id,
+                'account_id' => $account_data->id,
+                'amount' => $paid_amount,
+                'change' => 0,
+                'paying_method' => 'Cash',
+                'payment_note' => $request->note
+            ]);
+            $purchase_data->paid_amount += $paid_amount;
+            $purchase_data->payment_status = $payment_status;
+            $purchase_data->save();
+            $total_paid_amount -= $paid_amount;
+        }
+        return redirect()->back()->with('message', 'Due cleared successfully');
     }
 
     public function create()
     {
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('suppliers-add')){
-            return view('supplier.create');
+            $lims_customer_group_all = CustomerGroup::where('is_active',true)->get();
+            return view('backend.supplier.create', compact('lims_customer_group_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -56,7 +118,19 @@ class SupplierController extends Controller
             ],
             'image' => 'image|mimes:jpg,jpeg,png,gif|max:100000',
         ]);
-        
+
+        //validation for customer if create both user and supplier
+        if(isset($request->both)) {
+            $this->validate($request, [
+                'phone_number' => [
+                    'max:255',
+                    Rule::unique('customers')->where(function ($query) {
+                        return $query->where('is_active', 1);
+                    }),
+                ],
+            ]);
+        }
+
         $lims_supplier_data = $request->except('image');
         $lims_supplier_data['is_active'] = true;
         $image = $request->image;
@@ -68,15 +142,23 @@ class SupplierController extends Controller
             $lims_supplier_data['image'] = $imageName;
         }
         Supplier::create($lims_supplier_data);
-        $message = 'Data inserted successfully';
-        try{
-            Mail::send( 'mail.supplier_create', $lims_supplier_data, function( $message ) use ($lims_supplier_data)
-            {
-                $message->to( $lims_supplier_data['email'] )->subject( 'New Supplier' );
-            });
+        $message = 'Supplier';
+        if(isset($request->both)) {
+            Customer::create($lims_supplier_data);
+            $message .= ' and Customer';
         }
-        catch(\Exception $e) {
-            $message = 'Data inserted successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+        $mail_setting = MailSetting::latest()->first();
+        if($lims_supplier_data['email'] && $mail_setting) {
+            $this->setMailInfo($mail_setting);
+            try {
+                Mail::to($lims_supplier_data['email'])->send(new SupplierCreate($lims_supplier_data));
+                if(isset($request->both))
+                    Mail::to($lims_supplier_data['email'])->send(new CustomerCreate($lims_supplier_data));
+                $message .= ' created successfully!';
+            }
+            catch(\Exception $e) {
+                $message .= ' created successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
+            }
         }
         return redirect('supplier')->with('message', $message);
     }
@@ -86,7 +168,7 @@ class SupplierController extends Controller
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('suppliers-edit')){
             $lims_supplier_data = Supplier::where('id',$id)->first();
-            return view('supplier.edit',compact('lims_supplier_data'));
+            return view('backend.supplier.edit',compact('lims_supplier_data'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -111,9 +193,13 @@ class SupplierController extends Controller
             'image' => 'image|mimes:jpg,jpeg,png,gif|max:100000',
         ]);
 
+        $lims_supplier_data = Supplier::findOrFail($id);
+
         $input = $request->except('image');
         $image = $request->image;
         if ($image) {
+            $this->fileDelete('images/supplier/', $lims_supplier_data->image);
+
             $ext = pathinfo($image->getClientOriginalName(), PATHINFO_EXTENSION);
             $imageName = preg_replace('/[^a-zA-Z0-9]/', '', $request['company_name']);
             $imageName = $imageName . '.' . $ext;
@@ -121,7 +207,6 @@ class SupplierController extends Controller
             $input['image'] = $imageName;
         }
 
-        $lims_supplier_data = Supplier::findOrFail($id);
         $lims_supplier_data->update($input);
         return redirect('supplier')->with('message','Data updated successfully');
     }
@@ -133,6 +218,7 @@ class SupplierController extends Controller
             $lims_supplier_data = Supplier::findOrFail($id);
             $lims_supplier_data->is_active = false;
             $lims_supplier_data->save();
+            $this->fileDelete('images/supplier/', $lims_supplier_data->image);
         }
         return 'Supplier deleted successfully!';
     }
@@ -142,6 +228,8 @@ class SupplierController extends Controller
         $lims_supplier_data = Supplier::findOrFail($id);
         $lims_supplier_data->is_active = false;
         $lims_supplier_data->save();
+        $this->fileDelete('images/supplier/', $lims_supplier_data->image);
+
         return redirect('supplier')->with('not_permitted','Data deleted successfully');
     }
 
@@ -187,18 +275,31 @@ class SupplierController extends Controller
            $supplier->is_active = true;
            $supplier->save();
            $message = 'Supplier Imported Successfully';
-           if($data['email']){
-                try{
-                    Mail::send( 'mail.supplier_create', $data, function( $message ) use ($data)
-                    {
-                        $message->to( $data['email'] )->subject( 'New Supplier' );
-                    });
+
+           $mail_setting = MailSetting::latest()->first();
+
+
+           if($data['email'] && $mail_setting) {
+                try {
+                    Mail::to($data['email'])->send(new SupplierCreate($data));
                 }
                 catch(\Excetion $e){
                     $message = 'Supplier imported successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
-                }   
+                }
             }
         }
-        return redirect('supplier')->with('message', $message); 
+        return redirect('supplier')->with('message', $message);
+    }
+
+    public function suppliersAll()
+    {
+        $lims_supplier_list = DB::table('suppliers')->where('is_active', true)->get();
+        
+        $html = '';
+        foreach($lims_supplier_list as $supplier){
+            $html .='<option value="'.$supplier->id.'">'.$supplier->name . ' (' . $supplier->phone_number. ')'.'</option>';
+        }
+
+        return response()->json($html);
     }
 }

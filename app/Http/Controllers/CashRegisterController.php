@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\CashRegister;
-use App\Sale;
-use App\Payment;
-use App\Returns;
-use App\Expense;
+use App\Models\CashRegister;
+use App\Models\Sale;
+use App\Models\Payment;
+use App\Models\Returns;
+use App\Models\Expense;
 use Auth;
 
 class CashRegisterController extends Controller
@@ -16,7 +16,7 @@ class CashRegisterController extends Controller
 	{
 		if(Auth::user()->role_id <= 2) {
 			$lims_cash_register_all = CashRegister::with('user', 'warehouse')->get();
-			return view('cash_register.index', compact('lims_cash_register_all'));
+			return view('backend.cash_register.index', compact('lims_cash_register_all'));
 		}
 		else
 			return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');

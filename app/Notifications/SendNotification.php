@@ -56,6 +56,10 @@ class SendNotification extends Notification
     public function toArray($notifiable)
     {
         return [
+            'sender_id' => $this->request->sender_id,
+            'receiver_id' => $this->request->receiver_id,
+            'reminder_date' => date('Y-m-d', strtotime($this->request->reminder_date)),
+            'document_name' => $this->request->document_name,
             'message' => $this->request->message
         ];
     }

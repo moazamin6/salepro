@@ -1,7 +1,7 @@
 {
   "name": "SalePro",
   "short_name": "SalePro",
-  "start_url": "/sale-pro/",
+  "start_url": "/salepro/",
   "background_color": "#fff",
   "display": "standalone",
   "orientation": "portrait",

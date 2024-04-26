@@ -19,8 +19,8 @@ class CreateProductsTable extends Migration
             $table->integer('unit_id');
             $table->integer('purchase_unit_id');
             $table->integer('sale_unit_id');
-            $table->string('cost');
-            $table->string('price');
+            $table->double('cost');
+            $table->double('price');
             $table->double('qty')->nullable();
             $table->double('alert_quantity')->nullable();
             $table->tinyInteger('promotion')->nullable();

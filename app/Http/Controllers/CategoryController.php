@@ -3,23 +3,28 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Category;
-use App\Product;
+use Illuminate\Support\Str;
+use App\Models\Category;
+use App\Models\Product;
 use DB;
 use Auth;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Validation\Rule;
+use App\Traits\TenantInfo;
+use App\Traits\CacheForget;
+use Intervention\Image\Facades\Image;
 
 class CategoryController extends Controller
 {
+    use CacheForget;
+    use TenantInfo;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('category')) {
-            $lims_categories = Category::where('is_active', true)->pluck('name', 'id');
-            $lims_category_all = Category::where('is_active', true)->get();
-            return view('category.create',compact('lims_categories', 'lims_category_all'));
+            return view('backend.category.create');
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -27,15 +32,15 @@ class CategoryController extends Controller
 
     public function categoryData(Request $request)
     {
-        $columns = array( 
+        $columns = array(
             0 =>'id',
             2 =>'name',
             3=> 'parent_id',
             4=> 'is_active',
         );
-        
-        $totalData = Category::where('is_active', true)->count();
-        $totalFiltered = $totalData; 
+
+        $totalData = DB::table('categories')->where('is_active', true)->count();
+        $totalFiltered = $totalData;
 
         if($request->input('length') != -1)
             $limit = $request->input('length');
@@ -52,7 +57,7 @@ class CategoryController extends Controller
                         ->get();
         else
         {
-            $search = $request->input('search.value'); 
+            $search = $request->input('search.value');
             $categories =  Category::where([
                             ['name', 'LIKE', "%{$search}%"],
                             ['is_active', true]
@@ -74,11 +79,9 @@ class CategoryController extends Controller
                 $nestedData['key'] = $key;
 
                 if($category->image)
-                    $nestedData['image'] = '<img src="'.url('public/images/category', $category->image).'" height="70" width="70">';
+                    $nestedData['name'] = '<img src="'.url('images/category', $category->image).'" height="80" width="80">'.$category->name;
                 else
-                    $nestedData['image'] = '<img src="'.url('public/images/product/zummXD2dvAtI.png').'" height="80" width="80">';
-
-                $nestedData['name'] = $category->name;
+                    $nestedData['name'] = '<img src="'.url('images/zummXD2dvAtI.png').'" height="80" width="80">'.$category->name;
 
                 if($category->parent_id)
                     $nestedData['parent_id'] = Category::find($category->parent_id)->name;
@@ -89,7 +92,7 @@ class CategoryController extends Controller
                 $nestedData['stock_qty'] = $category->product()->where('is_active', true)->sum('qty');
                 $total_price = $category->product()->where('is_active', true)->sum(DB::raw('price * qty'));
                 $total_cost = $category->product()->where('is_active', true)->sum(DB::raw('cost * qty'));
-                
+
                 if(config('currency_position') == 'prefix')
                     $nestedData['stock_worth'] = config('currency').' '.$total_price.' / '.config('currency').' '.$total_cost;
                 else
@@ -107,7 +110,7 @@ class CategoryController extends Controller
                                 <li class="divider"></li>'.
                                 \Form::open(["route" => ["category.destroy", $category->id], "method" => "DELETE"] ).'
                                 <li>
-                                  <button type="submit" class="btn btn-link" onclick="return confirmDelete()"><i class="dripicons-trash"></i> '.trans("file.delete").'</button> 
+                                  <button type="submit" class="btn btn-link" onclick="return confirmDelete()"><i class="dripicons-trash"></i> '.trans("file.delete").'</button>
                                 </li>'.\Form::close().'
                             </ul>
                         </div>';
@@ -115,12 +118,12 @@ class CategoryController extends Controller
             }
         }
         $json_data = array(
-                    "draw"            => intval($request->input('draw')),  
-                    "recordsTotal"    => intval($totalData),  
-                    "recordsFiltered" => intval($totalFiltered), 
-                    "data"            => $data   
+                    "draw"            => intval($request->input('draw')),
+                    "recordsTotal"    => intval($totalData),
+                    "recordsFiltered" => intval($totalFiltered),
+                    "data"            => $data
                     );
-            
+
         echo json_encode($json_data);
     }
 
@@ -135,34 +138,79 @@ class CategoryController extends Controller
                 }),
             ],
             'image' => 'image|mimes:jpg,jpeg,png,gif',
+            'icon'  => 'mimetypes:text/plain,image/png,image/jpeg,image/svg',
         ]);
         $image = $request->image;
         if ($image) {
             $ext = pathinfo($image->getClientOriginalName(), PATHINFO_EXTENSION);
             $imageName = date("Ymdhis");
-            $imageName = $imageName . '.' . $ext;
-            $image->move('public/images/category', $imageName);
-            
+            if(!config('database.connections.saleprosaas_landlord')) {
+                $imageName = $imageName . '.' . $ext;
+                $image->move('public/images/category', $imageName);
+            }
+            else {
+                $imageName = $this->getTenantId() . '_' . $imageName . '.' . $ext;
+                $image->move('public/images/category', $imageName);
+            }
+            Image::make('public/images/category/'. $imageName)->fit(300, 300)->save();
             $lims_category_data['image'] = $imageName;
+        }
+        $icon = $request->icon;
+        if ($icon) {
+            if (!file_exists('public/images/category/icons/')) {
+                mkdir('public/images/category/icons/', 0755, true);
+            }
+            $ext = pathinfo($icon->getClientOriginalName(), PATHINFO_EXTENSION);
+            $iconName = date("Ymdhis");
+            if(!config('database.connections.saleprosaas_landlord')) {
+                $iconName = $iconName . '.' . $ext;
+                $icon->move('public/images/category/icons/', $iconName);
+            }
+            else {
+                $iconName = $this->getTenantId() . '_' . $iconName . '.' . $ext;
+                $icon->move('public/images/category/icons/', $iconName);
+            }
+            Image::make('public/images/category/icons/'. $iconName)->fit(100, 100)->save();
+            $lims_category_data['icon'] = $iconName;
         }
         $lims_category_data['name'] = $request->name;
         $lims_category_data['parent_id'] = $request->parent_id;
         $lims_category_data['is_active'] = true;
-        Category::create($lims_category_data);
+
+        if(isset($request->is_sync_disable))
+            $lims_category_data['is_sync_disable'] = $request->is_sync_disable;
+
+        if(in_array('ecommerce', explode(',',config('addons')))) {
+            $lims_category_data['slug'] = Str::slug($request->name, '-');
+            if($request->featured == 1){
+                $lims_category_data['featured'] = 1;
+            } else {
+                $lims_category_data['featured'] = 0;
+            }
+            $lims_category_data['page_title'] = $request->page_title;
+            $lims_category_data['short_description'] = $request->short_description;
+        }
+
+        DB::table('categories')->insert($lims_category_data);
+        $this->cacheForget('category_list');
         return redirect('category')->with('message', 'Category inserted successfully');
     }
 
     public function edit($id)
     {
-        $lims_category_data = Category::findOrFail($id);
-        $lims_parent_data = Category::where('id', $lims_category_data['parent_id'])->first();
-        if($lims_parent_data)
-            $lims_category_data['parent'] = $lims_parent_data['name'];
+        $lims_category_data = DB::table('categories')->where('id', $id)->first();
+        $lims_parent_data = DB::table('categories')->where('id', $lims_category_data->parent_id)->first();
+        if($lims_parent_data){
+            $lims_category_data->parent = $lims_parent_data->name;
+        }
         return $lims_category_data;
     }
 
     public function update(Request $request)
     {
+        if(!env('USER_VERIFIED'))
+            return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
+        
         $this->validate($request,[
             'name' => [
                 'max:255',
@@ -171,19 +219,70 @@ class CategoryController extends Controller
                 }),
             ],
             'image' => 'image|mimes:jpg,jpeg,png,gif',
+            'icon'  => 'mimetypes:text/plain,image/png,image/jpeg,image/svg',
         ]);
 
-        $input = $request->except('image');
+        $lims_category_data = DB::table('categories')->where('id', $request->category_id)->first();
+
+        $input = $request->except('image','icon','_method','_token','category_id');
+
         $image = $request->image;
         if ($image) {
+            $this->fileDelete('images/category/', $lims_category_data->image);
+
             $ext = pathinfo($image->getClientOriginalName(), PATHINFO_EXTENSION);
             $imageName = date("Ymdhis");
-            $imageName = $imageName . '.' . $ext;
-            $image->move('public/images/category', $imageName);
+            if(!config('database.connections.saleprosaas_landlord')) {
+                $imageName = $imageName . '.' . $ext;
+                $image->move('public/images/category', $imageName);
+            }
+            else {
+                $imageName = $this->getTenantId() . '_' . $imageName . '.' . $ext;
+                $image->move('public/images/category', $imageName);
+            }
+            Image::make('public/images/category/'. $imageName)->fit(100, 100)->save(); 
             $input['image'] = $imageName;
         }
-        $lims_category_data = Category::findOrFail($request->category_id);
-        $lims_category_data->update($input);
+
+        $icon = $request->icon;
+        if ($icon) {
+            if (!file_exists('public/images/category/icons/')) {
+                mkdir('public/images/category/icons/', 0755, true);
+            }
+            $this->fileDelete('images/category/icons/', $lims_category_data->icon);
+
+            $ext = pathinfo($icon->getClientOriginalName(), PATHINFO_EXTENSION);
+            $iconName = date("Ymdhis");
+            if(!config('database.connections.saleprosaas_landlord')) {
+                $iconName = $iconName . '.' . $ext;
+                $icon->move('public/images/category/icons/', $iconName);
+            }
+            else {
+                $iconName = $this->getTenantId() . '_' . $iconName . '.' . $ext;
+                $icon->move('public/images/category/icons/', $iconName);
+            }
+            Image::make('public/images/category/icons/'. $iconName)->fit(100, 100)->save();            
+            $input['icon'] = $iconName;
+        }
+        if(!isset($request->featured) && \Schema::hasColumn('categories', 'featured') ){
+            $input['featured'] = 0;
+        }
+        if(!isset($input['is_sync_disable']) && \Schema::hasColumn('categories', 'is_sync_disable'))
+            $input['is_sync_disable'] = null;
+
+        if(in_array('ecommerce', explode(',',config('addons')))) {
+            $input['slug'] = Str::slug($request->name, '-');
+            if($request->featured == 1){
+                $input['featured'] = 1;
+            } else {
+                $input['featured'] = 0;
+            }
+            $input['page_title'] = $request->page_title;
+            $input['short_description'] = $request->short_description;
+        }
+
+        DB::table('categories')->where('id', $request->category_id)->update($input);
+        
         return redirect('category')->with('message', 'Category updated successfully');
     }
 
@@ -227,6 +326,7 @@ class CategoryController extends Controller
             $category->is_active = true;
             $category->save();
         }
+        $this->cacheForget('category_list');
         return redirect('category')->with('message', 'Category imported successfully');
     }
 
@@ -240,11 +340,13 @@ class CategoryController extends Controller
                 $product_data->save();
             }
             $lims_category_data = Category::findOrFail($id);
-            if($lims_category_data->image)
-                unlink('public/images/category/'.$lims_category_data->image);
             $lims_category_data->is_active = false;
             $lims_category_data->save();
+
+            $this->fileDelete('images/category/', $lims_category_data->image);
+            $this->fileDelete('images/category/icons', $lims_category_data->icon);
         }
+        $this->cacheForget('category_list');
         return 'Category deleted successfully!';
     }
 
@@ -257,9 +359,12 @@ class CategoryController extends Controller
             $product_data->is_active = false;
             $product_data->save();
         }
-        if($lims_category_data->image)
-            unlink('public/images/category/'.$lims_category_data->image);
+
+        $this->fileDelete('images/category/', $lims_category_data->image);
+        $this->fileDelete('images/category/icons', $lims_category_data->icon);
+
         $lims_category_data->save();
+        $this->cacheForget('category_list');
         return redirect('category')->with('not_permitted', 'Category deleted successfully');
     }
 }

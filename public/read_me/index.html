@@ -42,12 +42,15 @@
             <li><a href="#common-error" title="Common error">Common Error</a></li>
             <li><a href="#update" title="SOFTWARE UPDATE">Software Update</a></li>
             <li><a href="#pos-printer" title="POS Printer Configuration">POS Printer Settings</a></li>
+            <li><a href="#empty-db" title="EMPTY DATABASE">Empty Database</a></li>
             <li><a href="#mail" title="SETUP MAIL SERVER">Setup Mail Server</a></li>
             <li><a href="#dashboard" title="DASHBOARD">Dashboard</a></li>
             <li><a href="#product" title="PRODUCT">Product</a></li>
+            <li><a href="#weight-scale-machine" title="Weight Scale Machine">Weight Scale Machine</a></li>
             <li><a href="#print-barcode" title="Print Barcode">Print Barcode</a></li>
             <li><a href="#adding-stock" title="Adding Stock">Adding Stock</a></li>
             <li><a href="#purchase" title="PURCHASE">Purchase</a></li>
+            <li><a href="#automated-purchase" title="Automated Purchase">Automated Purchase</a></li>
             <li><a href="#sale" title="SALE">Sale</a></li>
             <li><a href="#expense" title="EXPENSE">Expense</a></li>
             <li><a href="#quotation" title="QUOTATION">Quotation</a></li>
@@ -59,6 +62,7 @@
             <li><a href="#hrm" title="HRM">HRM</a></li>
             <li><a href="#people" title="PEOPLE">People</a></li>
             <li><a href="#reports" title="REPORTS">Reports</a></li>
+            <li><a href="#dso-alert" title="Daily Sale Objective Alert">Daily Sale Objective Alert</a></li>
             <li><a href="#setting" title="SETTINGS">Settings</a></li>
             <li><a href="#translation" title="TRANSLATION">Translation</a></li>
             <li><a href="#video_tutorial" title="VIDEO TUTORIAL">Video Tutorial</a></li>
@@ -73,7 +77,7 @@
             <hr>
             <ul>
                 <li>by: LionCoders</li>
-                <li>email: <a href="mailto:hello@lion-coders.com">hello@lion-coders.com</a></li>
+                <li>email: <a href="mailto:support@lion-coders.com">support@lion-coders.com</a></li>
             </ul>
             <p>SaleProPOS is a software that will help you to manage your inventory, accounting and hrm. We believe that this software is suitable for both wholesale and retail buisness model and an ideal product for any Super Shop. This user friendly software is fully responsive and has many features. Hope that this software will be helpful to manage your buisness inventory.</p>
         </section>
@@ -87,7 +91,7 @@
             <ul>
                 <li>
                     Preferred Server - Apache/Nginx</li>
-                <li><strong>PHP Version &gt;= 7.4</strong></li>
+                <li><strong>PHP Version 7.4</strong></li>
                 <li>OpenSSL PHP Extension&nbsp;</li>
                 <li>PDO PHP Extension&nbsp;</li>
                 <li>PHP Fileinfo Extension</li>
@@ -109,14 +113,15 @@
             <p>
                 <strong>Localhost</strong>
             </p>
-            <p>If you are installing on localhost, please keep in mind that you’ll need Internet for installation. After installation, you can use SalePro without Internet. We suggest you use XAMPP for localhost. You can use other solutions like WAMP, MAMP etc. as well and installation process for all of them are same. Create a folder inside htdocs folder inside your XAMPP installation. Now copy the zip folder you downloaded from Codecanyon to htdocs folder and unzip it there. Rename it to whatever you want. Say, you have named it- ‘my-folder’. Now start your XAMPP (or whatever you are using) and go to your browser and access SalePro from your browser like- localhost/my-folder/.</p>
+            <p>If you are installing on localhost, please keep in mind that you’ll need Internet for installation. After installation, you can use SalePro without Internet. We suggest you use <strong>XAMPP</strong> for localhost. You can use other solutions like WAMP, MAMP etc. as well and installation process for all of them are same.</p><p>Create a folder inside htdocs folder inside your XAMPP installation. Now copy the zip folder you downloaded from Codecanyon to htdocs folder and unzip it there. Rename it to whatever you want. Say, you have named it- ‘my-folder’. Now start your XAMPP (or whatever you are using) and go to your browser and access SalePro from your browser like- localhost/my-folder/.</p>
+            <p>While installing you may face 'max execution time error', as importing dtatabase takes a while. To solve this issue, please increase 'max_execution_time' and 'memory_limit' value in your php.ini file. set memory_limit=512M and max_execution_time=480. for reference- <a href="https://youtu.be/zvOC76TXOnA">How to edit php.ini file on localhost(XAMPP)</a></p>
             <p><strong>Online Hosting</strong></p>
-            <p>Upload the zip folder you downloaded from Codecanyon to your hosting and unzip it. Please make sure you configure your web hosting’s settings, so that it shows hidden files and folders. This is to ensure that if you copy/move the contents from the unzipped folder to any other location, you copy all the files including ‘.htaccess’, ‘.env’ files which are necessary for the proper functioning of the software. Now you can access the folder where you have PeoplePro from your browser.</p>
+            <p>Upload the zip folder you downloaded from Codecanyon to your hosting and unzip it. Please make sure you configure your web hosting’s settings, so that it shows hidden files and folders (for reference- <a href="https://youtu.be/zvOC76TXOnA">How to enable hidden files and folders on cpanel</a>) This is to ensure that if you copy/move the contents from the unzipped folder to any other location, you copy all the files including ‘.htaccess’, ‘.env’ files which are necessary for the proper functioning of the software. Now you can access the folder where you have SalePro from your browser.</p>
             <p>Now follow the installation process below.</p>
             <h2><strong>Step 1</strong></h2>
             <ul>
                 <li>
-                    Please read the license arrangement before proceeding.
+                    Please read the license agreement before proceeding.
                 </li>
                 <li>
                     You need to accept and continue for going to the next step.
@@ -157,7 +162,7 @@
             <img alt="" src="assets/images/step3.png">
             <h2><strong>Step 4</strong></h2>
             <ul>
-                <li>Congratulations! You have successfully installed PeoplePro.<br>
+                <li>Congratulations! You have successfully installed SalePro.<br>
                     Note : This automatic process should delete the install folder which is inside the project folder.your project folder contains 'install' folder, then please delete the folder.
                 </li>
             </ul>
@@ -167,17 +172,19 @@
             <iframe width="560" height="315" src="https://www.youtube.com/embed/Fvi09MgBxUU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             <br><br>
             <p>You can also watch this video on <a href="https://www.youtube.com/watch?v=Fvi09MgBxUU">youtube</a></p>
+
+            <h2><strong>Help with installation</strong></h2>
+            <p>We can help you install on any cpanel based hosting for as little as $15. You can send the money via paypal to tarik_17@yahoo.co.uk. Contact us at <a href="https://lion-coders.com/support">Support</a> with your hosting details and payment proof and we'll take care of the rest.</p>
+            <p><strong>Please note</strong>- If you are installing on localhost, we'll charge $50 for anydesk/teamviewer support(installation).</p>
         </section>
         <section id="common-error">
             <div class="page-header">
                 <h3>Common Errors</h3>
                 <hr class="notop">
             </div>
-            <ul>
-                <li>
-                    If you face 500 server error after installing the software please update your php version to 7.3 or later. If you still get 500 error after updating php version, please open your '.env' file and change the value of 'APP_DEBUG' to true. And then go to the page again where you were getting 500 server error. You should see description of actual error now. Please take a screenshot and send it over along with your cpanel access details, so that we can look into it.
-                </li>
-            </ul>
+            <p>If you face 500 server error after installing the software please update your php version to 7.4. If you still get 500 error after updating php version, please open your '.env' file and change the value of 'APP_DEBUG' to true. You'll find '.env' file in the root folder (salepro) And then go to the page again where you were getting 500 server error. You should see description of actual error now. Please take a screenshot and send it over along with your cpanel access details, so that we can look into it.</p>
+            <img alt="" src="assets/images/env.png">
+            <img alt="" src="assets/images/app_debug.png">
         </section>
         <section id="update">
             <div class="page-header">
@@ -228,7 +235,7 @@
                 <li>Delete your previous database it.</li>
                 <li>Delete the project folder and reinstall it</li>
             </ul>
-            <p><strong>Still facing problem? Don't worry! We can update your software for USD 15. Please contact us at <a href="mailto:support@lion-coders.com">support@lion-coders.com</a>.</strong></p>
+            <p><strong>Still facing problem? Don't worry! We can update your software for USD 15. Please contact us at <a href="https://lion-coders.com/support">Support</a>.</strong></p>
         </section>
         <section id="pos-printer">
             <div class="page-header">
@@ -290,6 +297,21 @@
                 <img alt="" src="assets/images/pos_printer9.png">
             </p>
         </section>
+        <section id="empty-db">
+            <div class="page-header">
+                <h3>Empty Database</h3>
+                <hr class="notop">
+            </div>
+            <p>
+                When you install this software it will come with some dummy data. To delete all these dummy data click on your username on the top navigation bar. Then you will see an option named Empty Database. Click on that and all the dummy data will be deleted automatically.
+            </p>
+            <p>
+                <img alt="" src="assets/images/empty_database1.png">
+            </p>
+            <p>
+                <img alt="" src="assets/images/empty_database2.png">
+            </p>
+        </section>
         <section id="mail">
             <div class="page-header">
                 <h3>SETUP MAIL SERVER</h3>
@@ -333,7 +355,7 @@
                 <hr class="notop">
             </div>
             <h2><strong>Category</strong></h2>
-            <p>You can add, edit and delete product category. You can also import category from CSV file and export table data to PDF and CSV. Also you can print data from table.</p>
+            <p>You can add, edit and delete product category. You can also import category from CSV file and export table data to PDF, Excel, CSV. Also you can print data from table.</p>
             <p>
                 <img alt="" src="assets/images/category1.png">&nbsp;&nbsp;
                 <img alt="" src="assets/images/category2.png">
@@ -375,6 +397,7 @@
                 <li>Standard</li>
                 <li>Digital</li>
                 <li>Combo (Combination of standard product. Like mango juice is a combo product as it is consist of mango and sugar ).</li>
+                <li>Service</li>
             </ul>
             <p>You can add, edit and delete product. You can import product from CSV. <strong>You must follow the instruction to import data from CSV</strong>. To get better understanding you can download the sample file.</p>
             <p>
@@ -384,6 +407,16 @@
             <p>You can sort table data according to column</p>
             <p><img alt="" src="assets/images/product3.png"></p>
             <p>And you can search, export and print data from table that we discussed earlier in greater detail.</p>
+        </section>
+        <section id="weight-scale-machine">
+            <div class="page-header">
+                <h3>Weight Scale Machine</h3>
+                <hr class="notop">
+            </div>
+            <p>SalePro is compatible with weight scale machine. But you have to follow the rules strictly. In a weight scale machine the machine will give you a label of 13 digits barcode. Consider the following picture: </p>
+            <p><img alt="" src="assets/images/weight_machine1.jpeg"></p>
+            <p>Here first 7 digits are the product code which must be similar with the product code of Salepro. Next 5 digits contains weight and the last digit is a random number. Whenever you put a product on a weight scale machine it will generate this type of label automatically. Then all you have to do is scan this label. Product's info and weight will be calculated automatically with SalePro. But the product code must be same both for SalePro and weight scale machine.</p>
+            <p><img alt="" src="assets/images/weight_machine2.jpeg"></p>
         </section>
         <section id="print-barcode">
             <div class="page-header">
@@ -423,6 +456,18 @@
                 <img alt="" src="assets/images/purchase6.png">
             </p>
             <p>And you can search, export and print data from table that we discussed in <a href="#product">Product</a> section.</p>
+        </section>
+        <section id="automated-purchase">
+            <div class="page-header">
+                <h3>Automated Purchase</h3>
+                <hr class="notop">
+            </div>
+            <p>User can make the purchase automated for those products which quantity exceeds the alert quantity by setting up the cron job. Please follow the following steps to make it workable.</p>
+            <p>First go to the cpanel and go to the cron job settings</p>
+            <p><img alt="" src="assets/images/automated_purchase1.png"></p>
+            <p>Then set up the cron job as described below. Here cron job is set for every 5 minitues. So the system will check in every five minitues and if any product exceeds the alert quantity an auotomated purchase will be made.</p>
+            <p><img alt="" src="assets/images/automated_purchase2.png"></p>
+            <p><strong>Note:</strong> If you face any issues while setting up cron jobs, please contact at <a href="https://lion-coders.com/support">Support</a>.</p>
         </section>
         <section id="sale">
             <div class="page-header">
@@ -614,15 +659,29 @@
                 <li><strong>Daily Purchase Report</strong></li>
                 <li><strong>Monthly Purchase Report</strong></li>
                 <li><strong>Sale Report</strong></li>
+                <li><strong>Sale Report Chart</strong></li>
                 <li><strong>Payment Report</strong></li>
                 <li><strong>Purchase Report</strong></li>
                 <li><strong>Warehouse Stock Chart Report</strong></li>
                 <li><strong>Product Quantity Alert Report</strong></li>
+                <li><strong>Daily Sale Objective Report</strong></li>
                 <li><strong>User Report</strong></li>
                 <li><strong>Customer Report</strong></li>
                 <li><strong>Supplier Report</strong></li>
                 <li><strong>Due Report</strong></li>
             </ul>
+        </section>
+        <section id="dso-alert">
+            <div class="page-header">
+                <h3>Daily Sale Objective Alert</h3>
+                <hr class="notop">
+            </div>
+            <p>You can set daily sale objective for specific products. Meaning the minumum sold quantity for a product in a day. If the product can not fulfill the objective user will be notified on the dashboard. To make this feature automated you have to set up the cron job correctly.</p>
+            <p>First go to the cpanel and go to the cron job settings</p>
+            <p><img alt="" src="assets/images/automated_purchase1.png"></p>
+            <p>Then set up the cron job as described below. Here cron job is set up for once per day. So the system will check at 12:00 am if any product can not fulfill the daily sale objective for previous day. Products those can not fulfill the daily sale objective will be listed to the daily sale objective report.</p>
+            <p><img alt="" src="assets/images/dso_alert1.png"></p>
+            <p><strong>Note:</strong> If you face any issues while setting up cron jobs, please contact at <a href="https://lion-coders.com/support">Support</a>.</p>
         </section>
         <section id="setting">
             <div class="page-header">
@@ -685,19 +744,25 @@
                 <h3>TRANSLATION</h3>
                 <hr class="notop">
             </div>
-            <p>Right now this software is supported in 11 language.</p>
+            <p>Right now this software is supported in 17 languages.</p>
             <ul>
                 <li>English</li>
                 <li>Spanish</li>
                 <li>French</li>
                 <li>Arabic</li>
+                <li>Simplified Chinese</li>
+                <li>Traditional Chinese</li>
                 <li>Portugeese</li>
                 <li>German</li>
                 <li>Dutch</li>
+                <li>Malay</li>
                 <li>Hindi</li>
+                <li>Vietnamese</li>
                 <li>Italian</li>
                 <li>Russian</li>
+                <li>Bulgarian</li>
                 <li>Turkish</li>
+                <li>Lao</li>
             </ul>
             We hope that in future this software will be supported in more other languages. You can convert this software in your preferable language by simply changing the language option.</p>
             <p>
@@ -712,18 +777,16 @@
                 <hr class="notop">
             </div>
             <p>
-                <iframe allowfullscreen="" frameborder="0" height="315" src="https://www.youtube.com/embed/-C0Rk5Fae4I" width="560"></iframe></p>
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLsh7QWvPhxo4_hu-i3B-0VEgy7oGM0ReH" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </section>
         <section id="support">
             <div class="page-header">
                 <h3>SUPPORT</h3>
                 <hr class="notop">
             </div>
-            <p>
-                Thanks a lot for using this user friendly software. Hope you found this documentation helpful for using this software. Please support this product by giving your ratings and testimonial.</p>
-            <p>
-                With best wishes - <a href="http://lion-coders.com">LionCoders</a>
-            </p>
+            <p>We are happy to provide support for any issues within our software. We also provide customization service for as little as $15/hour. So if you have any features in mind or suugestions, please feel free to contact us at <a href="https://lion-coders.com/support"><strong>Support</strong></a>. Please note that we don't provide support though any other means (example- whatsapp, comments etc.). So, please refrain from commenting your queries on codecanyon or kocking us elsewhere.</p>
+            <p>Also, in case of any errors/bugs/issues on your installation, please contact us with your hosting details (url, username, password), software admin access (url, username, password) and purchase code. If your support period has expired, please renew support on codecanyon before contacting us for support.</p>
+            <p>Thank you and  best wishes from <a href="http://lion-coders.com">LionCoders</a></p>
         </section>
     </div>
     <script type="text/javascript">

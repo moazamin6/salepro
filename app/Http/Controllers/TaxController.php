@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Tax;
+use App\Models\Tax;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
@@ -11,12 +11,14 @@ use Auth;
 
 class TaxController extends Controller
 {
+    use \App\Traits\CacheForget;
+
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('tax')) {
             $lims_tax_all = Tax::where('is_active', true)->get();
-            return view('tax.create', compact('lims_tax_all'));
+            return view('backend.tax.create', compact('lims_tax_all'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -38,6 +40,7 @@ class TaxController extends Controller
         $input = $request->all();
         $input['is_active'] = true;
         Tax::create($input);
+        $this->cacheForget('tax_list');
         return redirect('tax')->with('message', 'Data inserted successfully');
     }
 
@@ -46,7 +49,7 @@ class TaxController extends Controller
         $lims_tax_name = $_GET['lims_taxNameSearch'];
         $lims_tax_all = tax::where('name', $lims_tax_name)->paginate(5);
         $lims_tax_list = tax::all();
-        return view('tax.create', compact('lims_tax_all','lims_tax_list'));
+        return view('backend.tax.create', compact('lims_tax_all','lims_tax_list'));
     }
 
     public function edit($id)
@@ -71,11 +74,12 @@ class TaxController extends Controller
         $input = $request->all();
         $lims_tax_data = Tax::where('id', $input['tax_id'])->first();
         $lims_tax_data->update($input);
+        $this->cacheForget('tax_list');
         return redirect('tax')->with('message', 'Data updated successfully');
     }
 
     public function importTax(Request $request)
-    {  
+    {
         //get file
         $upload=$request->file('file');
         $ext = pathinfo($upload->getClientOriginalName(), PATHINFO_EXTENSION);
@@ -120,6 +124,7 @@ class TaxController extends Controller
             $lims_tax_data->is_active = false;
             $lims_tax_data->save();
         }
+        $this->cacheForget('tax_list');
         return 'Tax deleted successfully!';
     }
 
@@ -128,6 +133,7 @@ class TaxController extends Controller
         $lims_tax_data = Tax::findOrFail($id);
         $lims_tax_data->is_active = false;
         $lims_tax_data->save();
+        $this->cacheForget('tax_list');
         return redirect('tax')->with('not_permitted', 'Data deleted successfully');
     }
 }
